@@ -66,7 +66,11 @@ _LOCAL_APP_CANDIDATES = [
 
 LOCAL_APPS = [name for name in _LOCAL_APP_CANDIDATES if _app_exists(name)]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+# Размещаем корневое приложение 'app' раньше admin, чтобы кастомная модель пользователя была доступна
+if 'app.apps.AppConfig' in LOCAL_APPS:
+    INSTALLED_APPS = ['app.apps.AppConfig'] + DJANGO_APPS + THIRD_PARTY_APPS + [a for a in LOCAL_APPS if a != 'app.apps.AppConfig']
+else:
+    INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
