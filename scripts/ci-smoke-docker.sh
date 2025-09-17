@@ -15,6 +15,21 @@ require docker
 docker compose version >/dev/null 2>&1 || alias docker-compose='docker compose'
 
 log "Сборка и запуск сервисов (detached)"
+if [ -f .env ]; then cp -f .env .env.bak.$(date +%Y%m%d%H%M%S); fi
+if [ ! -f .env ]; then
+  cp env.example .env 2>/dev/null || cp .env.example .env 2>/dev/null || true
+fi
+esc() { printf '%s' "$1" | sed -e 's/[|/\\&]/\\&/g'; }
+SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+if [ -f .env ]; then
+  grep -q "your-secret-key-here" .env && sed -i "s|your-secret-key-here|$(esc "$SECRET_KEY")|" .env || true
+  grep -q "your-jwt-secret-key" .env && sed -i "s|your-jwt-secret-key|$(esc "$JWT_SECRET")|" .env || true
+  grep -q "your-redis-password" .env && sed -i "s|your-redis-password|redis123|" .env || true
+  grep -q "your-secure-password" .env && sed -i "s|your-secure-password|workernet123|" .env || true
+  grep -q "^DJANGO_SECRET_KEY=" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+  grep -q "^JWT_SECRET=" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
+fi
 docker compose up -d --build
 
 log "Ожидание старта сервисов (15 секунд)"

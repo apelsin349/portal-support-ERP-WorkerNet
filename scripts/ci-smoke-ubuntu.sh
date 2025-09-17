@@ -51,9 +51,22 @@ log "Клонирование репозитория (если основной 
 git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git app || git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git app
 cd app
 
-log "Создание .env из примера и генерация секретного ключа"
-cp env.example .env || cp .env.example .env || true
-sed -i "s/your-secret-key-here.*/$(openssl rand -base64 32 | sed 's/\//\\\//g')/" .env || true
+log "Подготовка .env (автогенерация из env.example, секреты)"
+if [ -f .env ]; then cp -f .env .env.bak.$(date +%Y%m%d%H%M%S); fi
+if [ ! -f .env ]; then
+  cp env.example .env 2>/dev/null || cp .env.example .env 2>/dev/null || true
+fi
+esc() { printf '%s' "$1" | sed -e 's/[|/\\&]/\\&/g'; }
+SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+if [ -f .env ]; then
+  grep -q "your-secret-key-here" .env && sed -i "s|your-secret-key-here|$(esc "$SECRET_KEY")|" .env || true
+  grep -q "your-jwt-secret-key" .env && sed -i "s|your-jwt-secret-key|$(esc "$JWT_SECRET")|" .env || true
+  grep -q "your-redis-password" .env && sed -i "s|your-redis-password|redis123|" .env || true
+  grep -q "your-secure-password" .env && sed -i "s|your-secure-password|workernet123|" .env || true
+  grep -q "^DJANGO_SECRET_KEY=" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+  grep -q "^JWT_SECRET=" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
+fi
 
 log "Сборка и запуск через Docker Compose (detached)"
 require docker

@@ -12,6 +12,15 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Network timeouts (tunable via env)
+CURL_CONNECT_TIMEOUT=${CURL_CONNECT_TIMEOUT:-3}
+CURL_MAX_TIME=${CURL_MAX_TIME:-10}
+CURL_OPTS="--fail --silent --show-error --location --connect-timeout $CURL_CONNECT_TIMEOUT --max-time $CURL_MAX_TIME"
+
+# APT timeouts
+APT_HTTP_TIMEOUT=${APT_HTTP_TIMEOUT:-5}
+APT_HTTPS_TIMEOUT=${APT_HTTPS_TIMEOUT:-5}
+
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -36,7 +45,7 @@ ok() {
 
 # Simple reachability check (HEAD)
 check_url() {
-    curl -sSfI --max-time 5 "$1" >/dev/null 2>&1
+    curl -sSfI --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_CONNECT_TIMEOUT" "$1" >/dev/null 2>&1
 }
 
 # Check external repos and set fallbacks
@@ -81,7 +90,7 @@ configure_apt_mirror_if_needed() {
         sudo sed -i 's|http://archive.ubuntu.com/ubuntu/|http://ru.archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list || true
         sudo sed -i 's|http://security.ubuntu.com/ubuntu|http://ru.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true
     fi
-    sudo apt update || true
+    sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
 }
 
 # Function to check if command exists
@@ -101,7 +110,7 @@ check_root() {
 check_ubuntu_version() {
     if ! command_exists lsb_release; then
         print_status "Installing lsb-release..."
-        sudo apt update && sudo apt install -y lsb-release
+        sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update && sudo apt install -y lsb-release
     fi
     
     UBUNTU_VERSION=$(lsb_release -rs)
@@ -118,7 +127,7 @@ check_ubuntu_version() {
 # Function to update system
 update_system() {
     print_status "Updating system packages..."
-    sudo apt update && sudo apt upgrade -y
+    sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update && sudo apt upgrade -y
     print_success "System updated successfully"
 }
 
@@ -172,21 +181,21 @@ install_nodejs() {
     print_status "Installing Node.js 18..."
 
     # 1) NodeSource (обычно быстрее по версиям)
-    if curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
+    if curl $CURL_OPTS https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
        sudo apt install -y nodejs; then
         print_success "Node.js 18 installed (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
         return 0
     fi
 
     print_warning "NodeSource недоступен. Пробую репозитории Ubuntu..."
-    sudo apt update || true
+    sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
     if sudo apt install -y nodejs npm; then
         print_success "Node.js установлен из Ubuntu (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
         return 0
     fi
 
     print_warning "Репозитории Ubuntu недоступны. Пробую NVM..."
-    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
+    curl $CURL_OPTS https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
     # shellcheck source=/dev/null
     [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
     if command -v nvm >/dev/null 2>&1; then
@@ -241,9 +250,9 @@ install_docker() {
     sudo apt remove -y docker docker-engine docker.io containerd runc || true
     
     # Install Docker (prefer official repo)
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg || true
+    curl $CURL_OPTS https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg || true
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null || true
-    sudo apt update || true
+    sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || true
     
     # If official failed, try ubuntu docker.io and compose plugin / standalone
@@ -347,14 +356,26 @@ configure_postgresql() {
     print_status "Configuring PostgreSQL..."
     
     # Set password for postgres user
-    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres123';"
+    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres123';" || true
     
-    # Create databases and user
-    sudo -u postgres psql -c "CREATE DATABASE worker_net;"
-    sudo -u postgres psql -c "CREATE DATABASE worker_net_test;"
-    sudo -u postgres psql -c "CREATE USER workernet WITH PASSWORD 'workernet123';"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net TO workernet;"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net_test TO workernet;"
+    # Create user if not exists and set password
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='workernet'" | grep -q 1; then
+        sudo -u postgres psql -c "CREATE USER workernet WITH PASSWORD 'workernet123';"
+    else
+        sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD 'workernet123';" || true
+    fi
+
+    # Create databases if not exist
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='worker_net'" | grep -q 1; then
+        sudo -u postgres createdb worker_net
+    fi
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='worker_net_test'" | grep -q 1; then
+        sudo -u postgres createdb worker_net_test
+    fi
+
+    # Grants (idempotent)
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net TO workernet;" || true
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net_test TO workernet;" || true
     
     # Enable auto-start on boot
     sudo systemctl enable postgresql || true
@@ -407,22 +428,54 @@ clone_repository() {
     print_success "Repository cloned/updated successfully"
 }
 
-# Function to setup environment
+# Function to setup environment (.env autogeneration with safe defaults)
 setup_environment() {
-    print_status "Setting up environment..."
-    
-    # Copy environment files
-    cp env.example .env
-    cp env.example .env.development
-    cp env.example .env.production
-    
-    # Update .env file
-    sed -i 's/your-secret-key-here/$(openssl rand -base64 32)/' .env
-    sed -i 's/your-jwt-secret-key/$(openssl rand -base64 32)/' .env
-    sed -i 's/your-redis-password/redis123/' .env
-    sed -i 's/your-secure-password/workernet123/' .env
-    
-    print_success "Environment configured successfully"
+    print_status "Setting up environment (.env generation)..."
+
+    # Do not overwrite existing .env; back up if we need to update
+    if [ -f .env ]; then
+        cp -f .env .env.bak.$(date +%Y%m%d%H%M%S)
+    fi
+
+    # Create .env from example if missing
+    if [ ! -f .env ]; then
+        if [ -f env.example ]; then
+            cp env.example .env
+        elif [ -f .env.example ]; then
+            cp .env.example .env
+        else
+            print_error "env.example not found; cannot create .env"
+            exit 1
+        fi
+    fi
+
+    # Helper: escape for sed delimiter |
+    esc() { printf '%s' "$1" | sed -e 's/[|/\\&]/\\&/g'; }
+
+    # Generate secrets only if placeholders are present
+    SECRET_KEY=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+    JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+
+    # Replace placeholders safely (idempotent if already replaced)
+    if grep -q "your-secret-key-here" .env; then
+        sed -i "s|your-secret-key-here|$(esc "$SECRET_KEY")|" .env
+    fi
+    if grep -q "your-jwt-secret-key" .env; then
+        sed -i "s|your-jwt-secret-key|$(esc "$JWT_SECRET")|" .env
+    fi
+    # Defaults for DB/Redis if placeholders exist
+    if grep -q "your-redis-password" .env; then
+        sed -i "s|your-redis-password|redis123|" .env
+    fi
+    if grep -q "your-secure-password" .env; then
+        sed -i "s|your-secure-password|workernet123|" .env
+    fi
+
+    # Ensure required minimum set if keys were entirely absent
+    grep -q "^DJANGO_SECRET_KEY=" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+    grep -q "^JWT_SECRET=" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
+
+    print_success "Environment configured (.env generated/updated)"
 }
 
 # Function to setup Python virtual environment
