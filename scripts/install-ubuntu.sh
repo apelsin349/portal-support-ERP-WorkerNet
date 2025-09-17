@@ -445,13 +445,13 @@ configure_redis() {
     
     # Set password for Redis (robust replace or append)
     sudo sed -i "s/^[#[:space:]]*requirepass .*/requirepass ${WORKERNET_REDIS_PASS}/" /etc/redis/redis.conf || true
-    grep -q "^requirepass" /etc/redis/redis.conf || echo "requirepass ${WORKERNET_REDIS_PASS}" | sudo tee -a /etc/redis/redis.conf >/dev/null
+    sudo grep -q "^requirepass" /etc/redis/redis.conf || echo "requirepass ${WORKERNET_REDIS_PASS}" | sudo tee -a /etc/redis/redis.conf >/dev/null
     
     # Configure Redis for better performance (robust replace or append)
     sudo sed -i "s/^[#[:space:]]*maxmemory .*/maxmemory 512mb/" /etc/redis/redis.conf || true
-    grep -q "^maxmemory 512mb" /etc/redis/redis.conf || echo "maxmemory 512mb" | sudo tee -a /etc/redis/redis.conf >/dev/null
+    sudo grep -q "^maxmemory 512mb" /etc/redis/redis.conf || echo "maxmemory 512mb" | sudo tee -a /etc/redis/redis.conf >/dev/null
     sudo sed -i "s/^[#[:space:]]*maxmemory-policy .*/maxmemory-policy allkeys-lru/" /etc/redis/redis.conf || true
-    grep -q "^maxmemory-policy allkeys-lru" /etc/redis/redis.conf || echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf >/dev/null
+    sudo grep -q "^maxmemory-policy allkeys-lru" /etc/redis/redis.conf || echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf >/dev/null
     
     # Restart Redis
     sudo systemctl restart redis-server
