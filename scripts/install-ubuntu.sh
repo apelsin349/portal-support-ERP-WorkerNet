@@ -682,14 +682,24 @@ setup_nodejs_env() {
     # Ищем каталог фронтенда максимально устойчиво
     FRONTEND_DIR=""
     
+    print_status "Поиск каталога фронтенда..."
+    print_status "WORKERNET_ROOT: ${WORKERNET_ROOT:-не определен}"
+    
     if [ -n "${WORKERNET_ROOT:-}" ]; then
         # Если WORKERNET_ROOT определен, используем его
         FRONTEND_DIR="${WORKERNET_ROOT}/frontend"
+        print_status "Проверяем: $FRONTEND_DIR"
         if [ ! -f "$FRONTEND_DIR/package.json" ]; then
+            print_warning "Фронтенд не найден в $FRONTEND_DIR, пробуем другие варианты..."
             FRONTEND_DIR=""
+        else
+            print_status "Найден фронтенд в: $FRONTEND_DIR"
         fi
-    else
-        # Fallback логика для случаев, когда WORKERNET_ROOT не определен
+    fi
+    
+    # Fallback логика для случаев, когда WORKERNET_ROOT не определен или фронтенд не найден
+    if [ -z "$FRONTEND_DIR" ]; then
+        print_status "Пробуем fallback варианты..."
         CANDIDATES=(
             "../frontend"
             "./frontend"
@@ -699,25 +709,43 @@ setup_nodejs_env() {
         GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
         if [ -n "$GIT_ROOT" ] && [ -d "$GIT_ROOT/frontend" ]; then
             CANDIDATES+=("$GIT_ROOT/frontend")
+            print_status "Добавлен git-корень: $GIT_ROOT/frontend"
         fi
         
         for p in "${CANDIDATES[@]}"; do
-            if [ -f "$p/package.json" ]; then FRONTEND_DIR="$p"; break; fi
+            print_status "Проверяем: $p"
+            if [ -f "$p/package.json" ]; then 
+                FRONTEND_DIR="$p"
+                print_status "Найден фронтенд в: $FRONTEND_DIR"
+                break
+            fi
         done
     fi
 
     # Если не нашли — пробуем поискать в $HOME (ограничим глубину для скорости)
     if [ -z "$FRONTEND_DIR" ]; then
+        print_status "Поиск в $HOME..."
         FOUND=$(find "$HOME" -maxdepth 6 -type f -name package.json -path "*/frontend/package.json" -print -quit 2>/dev/null || true)
         if [ -n "$FOUND" ]; then
             FRONTEND_DIR=$(dirname "$FOUND")
+            print_status "Найден фронтенд в: $FRONTEND_DIR"
+        else
+            print_status "Фронтенд не найден в $HOME"
         fi
     fi
 
     if [ -z "$FRONTEND_DIR" ]; then
-        print_warning "Каталог фронтенда не найден. Пропускаем установку npm-зависимостей."
-        echo "Подсказка: ожидается каталог 'frontend' с package.json."
-        return 0
+        if [ "${WORKERNET_REQUIRE_FRONTEND:-true}" = "true" ]; then
+            print_error "Требуемый каталог фронтенда не найден."
+            echo "Подсказка: ожидается каталог 'frontend' с package.json в $WORKERNET_ROOT"
+            echo "Проверьте, что репозиторий клонирован и структура каталогов стандартная."
+            echo "Либо укажите WORKERNET_REQUIRE_FRONTEND=false для пропуска (не рекомендуется)."
+            exit 1
+        else
+            print_warning "Каталог фронтенда не найден. Пропускаем установку npm-зависимостей."
+            echo "Подсказка: ожидается каталог 'frontend' с package.json."
+            return 0
+        fi
     fi
 
     # Проверяем существование каталога frontend
