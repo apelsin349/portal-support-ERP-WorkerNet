@@ -5,6 +5,9 @@
 
 set -e
 
+# Ensure stable working directory to avoid "getcwd() failed" issues during long-running APT/NVM steps
+cd "$HOME" || exit 1
+
 # Repository configuration (can be overridden via env)
 REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP-WorkerNet.git}"
 REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
@@ -194,13 +197,21 @@ install_nodejs() {
 
     print_warning "NodeSource недоступен. Пробую репозитории Ubuntu..."
     sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
-    if sudo apt install -y nodejs npm; then
+    # Устанавливаем только nodejs, npm подтянется при необходимости или есть в комплекте
+    if sudo apt install -y nodejs; then
+        # Если npm всё ещё отсутствует, пытаемся доставить (может конфликтовать с nodesource, поэтому не падаем)
+        if ! command -v npm >/dev/null 2>&1; then
+            sudo apt install -y npm || true
+        fi
         print_success "Node.js установлен из Ubuntu (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
         return 0
     fi
 
     print_warning "Репозитории Ubuntu недоступны. Пробую NVM..."
-    curl $CURL_OPTS https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
+    (
+        cd "$HOME" || true
+        curl $CURL_OPTS https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
+    )
     # shellcheck source=/dev/null
     [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
     if command -v nvm >/dev/null 2>&1; then
@@ -209,7 +220,8 @@ install_nodejs() {
         export NVM_IOJS_ORG_MIRROR="https://npmmirror.com/mirrors/iojs"
         if nvm install 18 && nvm alias default 18 && nvm use 18; then
             print_success "Node.js установлен через NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-            npm config set registry https://registry.npmmirror.com || true
+            # Защита от ошибок npm при отсутствии валидной CWD
+            ( cd "$HOME" && npm config set registry https://registry.npmmirror.com && npm -v ) || true
             return 0
         fi
     fi
