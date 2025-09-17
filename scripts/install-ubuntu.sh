@@ -559,10 +559,10 @@ setup_nodejs_env() {
     npm config set fund false >/dev/null 2>&1 || true
     npm config set audit false >/dev/null 2>&1 || true
     npm config set progress false >/dev/null 2>&1 || true
-    npm config set fetch-retries 3 >/dev/null 2>&1 || true
+    npm config set fetch-retries 5 >/dev/null 2>&1 || true
     npm config set fetch-retry-factor 2 >/dev/null 2>&1 || true
-    npm config set fetch-retry-maxtimeout 120000 >/dev/null 2>&1 || true
-    npm config set fetch-timeout 120000 >/dev/null 2>&1 || true
+    npm config set fetch-retry-maxtimeout 300000 >/dev/null 2>&1 || true
+    npm config set fetch-timeout 300000 >/dev/null 2>&1 || true
 
     # Автоподхват системного корневого хранилища сертификатов (для корпоративных прокси/MITM)
     if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
@@ -578,8 +578,11 @@ setup_nodejs_env() {
         npm config set proxy "${HTTP_PROXY:-${http_proxy}}" >/dev/null 2>&1 || true
     fi
 
-    INSTALL_CMD="npm install"
-    [ -f package-lock.json ] && INSTALL_CMD="npm ci"
+    INSTALL_CMD="npm install --no-optional"
+    [ -f package-lock.json ] && INSTALL_CMD="npm ci --no-optional"
+
+    # Проверка кэша; если повреждён — очищаем принудительно
+    npm cache verify >/dev/null 2>&1 || npm cache clean --force >/dev/null 2>&1 || true
 
     # Последовательно пробуем реестры с повторами
     REGISTRIES=(

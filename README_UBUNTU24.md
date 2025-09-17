@@ -333,14 +333,14 @@ npm config set proxy "$HTTP_PROXY"   # либо http_proxy
 npm config set https-proxy "$HTTPS_PROXY"  # либо https_proxy
 
 # Увеличить таймауты и повторы
-npm config set fetch-retries 3
+npm config set fetch-retries 5
 npm config set fetch-retry-factor 2
-npm config set fetch-retry-maxtimeout 120000
-npm config set fetch-timeout 120000
+npm config set fetch-retry-maxtimeout 300000
+npm config set fetch-timeout 300000
 
 # Поменять реестр и повторить установку
 npm config set registry https://registry.npmjs.org
-cd frontend && ( [ -f package-lock.json ] && npm ci || npm install )
+cd frontend && ( [ -f package-lock.json ] && npm ci --no-optional || npm install --no-optional )
 ```
 
 ### 4. Предупреждение APT: "Missing Signed-By ... for http://ru.archive.ubuntu.com/ubuntu"
