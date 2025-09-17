@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# WorkerNet Portal Installation Script for Ubuntu 24.04 LTS
-# This script installs all dependencies and sets up the WorkerNet Portal
+# Скрипт установки WorkerNet Portal для Ubuntu 24.04 LTS
+# Скрипт устанавливает все зависимости и подготавливает WorkerNet Portal
 
 set -e
 
@@ -13,37 +13,37 @@ REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP
 REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
 REPO_BRANCH="${WORKERNET_BRANCH:-main}"
 
-# Colors for output
+# Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Без цвета
 
-# Network timeouts (tunable via env)
+# Сетевые таймауты (можно менять через переменные окружения)
 CURL_CONNECT_TIMEOUT=${CURL_CONNECT_TIMEOUT:-3}
 CURL_MAX_TIME=${CURL_MAX_TIME:-10}
 CURL_OPTS="--fail --silent --show-error --location --connect-timeout $CURL_CONNECT_TIMEOUT --max-time $CURL_MAX_TIME"
 
-# APT timeouts
+# Таймауты APT
 APT_HTTP_TIMEOUT=${APT_HTTP_TIMEOUT:-5}
 APT_HTTPS_TIMEOUT=${APT_HTTPS_TIMEOUT:-5}
 
 # Function to print colored output
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[ИНФО]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[УСПЕХ]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[ВНИМАНИЕ]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ОШИБКА]${NC} $1"
 }
 
 # Additional status helper
@@ -51,14 +51,14 @@ ok() {
     echo -e "${GREEN}[OK]${NC} $1"
 }
 
-# Simple reachability check (HEAD)
+# Простая проверка доступности URL (HEAD)
 check_url() {
     curl -sSfI --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_CONNECT_TIMEOUT" "$1" >/dev/null 2>&1
 }
 
-# Check external repos and set fallbacks
+# Проверяем доступность внешних репозиториев и настраиваем запасные источники
 check_connectivity() {
-    print_status "Checking external repositories reachability..."
+    print_status "Проверяем доступность внешних репозиториев..."
     APT_PRIMARY_OK=true
     DOCKER_OK=true
     NODESOURCE_OK=true
@@ -82,18 +82,18 @@ check_connectivity() {
     # PyPI
     if ! check_url "https://pypi.org/simple/"; then PYPI_OK=false; fi
 
-    $APT_PRIMARY_OK && ok "APT primary mirror reachable" || print_warning "APT primary mirror not reachable"
-    $DOCKER_OK && ok "Docker repo reachable" || print_warning "Docker repo not reachable"
-    $NODESOURCE_OK && ok "NodeSource reachable" || print_warning "NodeSource not reachable"
-    $GITHUB_OK && ok "GitHub reachable" || print_warning "GitHub not reachable"
-    $GITHUB_RAW_OK && ok "GitHub RAW reachable" || print_warning "GitHub RAW not reachable"
-    $PYPI_OK && ok "PyPI reachable" || print_warning "PyPI not reachable"
+    $APT_PRIMARY_OK && ok "Основное зеркало APT доступно" || print_warning "Основное зеркало APT недоступно"
+    $DOCKER_OK && ok "Репозиторий Docker доступен" || print_warning "Репозиторий Docker недоступен"
+    $NODESOURCE_OK && ok "NodeSource доступен" || print_warning "NodeSource недоступен"
+    $GITHUB_OK && ok "GitHub доступен" || print_warning "GitHub недоступен"
+    $GITHUB_RAW_OK && ok "GitHub RAW доступен" || print_warning "GitHub RAW недоступен"
+    $PYPI_OK && ok "PyPI доступен" || print_warning "PyPI недоступен"
 }
 
-# Try to switch APT mirrors to RU mirror if primary is down
+# Переключение зеркал APT на российские при недоступности основных
 configure_apt_mirror_if_needed() {
     if [ "$APT_PRIMARY_OK" = false ]; then
-        print_warning "Switching APT mirrors to ru.archive.ubuntu.com"
+        print_warning "Переключаем зеркала APT на ru.archive.ubuntu.com"
         sudo cp -f /etc/apt/sources.list /etc/apt/sources.list.bak || true
         sudo sed -i 's|http://archive.ubuntu.com/ubuntu/|http://ru.archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list || true
         sudo sed -i 's|http://security.ubuntu.com/ubuntu|http://ru.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true
@@ -101,30 +101,30 @@ configure_apt_mirror_if_needed() {
     sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
 }
 
-# Function to check if command exists
+# Проверка наличия команды
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to check if running as root
+# Проверка запуска от root (запрещено)
 check_root() {
     if [[ $EUID -eq 0 ]]; then
-        print_error "This script should not be run as root"
+        print_error "Этот скрипт не должен выполняться от root"
         exit 1
     fi
 }
 
-# Function to check Ubuntu version
+# Проверка версии Ubuntu
 check_ubuntu_version() {
     if ! command_exists lsb_release; then
-        print_status "Installing lsb-release..."
+        print_status "Устанавливаем lsb-release..."
         sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update && sudo apt install -y lsb-release
     fi
     
     UBUNTU_VERSION=$(lsb_release -rs)
     if [[ "$UBUNTU_VERSION" != "24.04" ]]; then
-        print_warning "This script is designed for Ubuntu 24.04 LTS. You are running Ubuntu $UBUNTU_VERSION"
-        read -p "Do you want to continue anyway? (y/N): " -n 1 -r
+        print_warning "Скрипт рассчитан на Ubuntu 24.04 LTS. Обнаружена версия $UBUNTU_VERSION"
+        read -p "Продолжить в любом случае? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 1
@@ -132,16 +132,16 @@ check_ubuntu_version() {
     fi
 }
 
-# Function to update system
+# Обновление системы
 update_system() {
-    print_status "Updating system packages..."
+    print_status "Обновляем пакеты системы..."
     sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update && sudo apt upgrade -y
-    print_success "System updated successfully"
+    print_success "Система обновлена"
 }
 
-# Function to install basic packages
+# Установка базовых пакетов
 install_basic_packages() {
-    print_status "Installing basic packages..."
+    print_status "Устанавливаем базовые пакеты..."
     sudo apt install -y \
         curl \
         wget \
@@ -158,12 +158,12 @@ install_basic_packages() {
         tree \
         vim \
         nano
-    print_success "Basic packages installed successfully"
+    print_success "Базовые пакеты установлены"
 }
 
-# Function to install Python (prefer 3.12 on Ubuntu 24.04, fallback to 3.11, else generic python3)
+# Установка Python (предпочтительно 3.12, затем 3.11, иначе системный python3)
 install_python() {
-    print_status "Installing Python..."
+    print_status "Устанавливаем Python..."
 
     PYTHON_TARGET=""
 
@@ -178,24 +178,24 @@ install_python() {
 
     if [[ -n "$PYTHON_TARGET" && -x "$PYTHON_TARGET" ]]; then
         sudo update-alternatives --install /usr/bin/python3 python3 "$PYTHON_TARGET" 1
-        print_success "Python installed successfully ($("$PYTHON_TARGET" -V 2>&1))"
+        print_success "Python установлен ($("$PYTHON_TARGET" -V 2>&1))"
     else
-        print_success "Python installed successfully ($(python3 -V 2>&1))"
+        print_success "Python установлен ($(python3 -V 2>&1))"
     fi
 }
 
-# Function to install Node.js 18 (with resilient fallbacks)
+# Установка Node.js 18 (с устойчивыми фолбэками)
 install_nodejs() {
-    print_status "Installing Node.js 18..."
+    print_status "Устанавливаем Node.js 18..."
 
     # 1) NodeSource (обычно быстрее по версиям)
     if curl $CURL_OPTS https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
        sudo apt install -y nodejs; then
-        print_success "Node.js 18 installed (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+        print_success "Node.js 18 установлен (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
         return 0
     fi
 
-    print_warning "NodeSource недоступен. Пробую репозитории Ubuntu..."
+    print_warning "NodeSource недоступен. Пробуем репозитории Ubuntu..."
     # Очистка потенциально проблемного источника NodeSource, чтобы не мешал APT
     if [ -f /etc/apt/sources.list.d/nodesource.list ]; then
         sudo rm -f /etc/apt/sources.list.d/nodesource.list || true
@@ -207,11 +207,11 @@ install_nodejs() {
         if ! command -v npm >/dev/null 2>&1; then
             sudo apt install -y npm || true
         fi
-        print_success "Node.js установлен из Ubuntu (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+        print_success "Node.js установлен из репозиториев Ubuntu (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
         return 0
     fi
 
-    print_warning "Репозитории Ubuntu недоступны. Пробую NVM..."
+    print_warning "Репозитории Ubuntu недоступны. Пробуем NVM..."
     ( 
         cd "$HOME" || true
         curl $CURL_OPTS https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
@@ -239,7 +239,7 @@ install_nodejs() {
         fi
     fi
 
-    print_warning "NVM недоступен. Пробую Snap..."
+    print_warning "NVM недоступен. Пробуем Snap..."
     if sudo snap install node --channel=18/stable --classic; then
         if ! echo "$PATH" | grep -q "/snap/bin"; then
             echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
@@ -254,27 +254,27 @@ install_nodejs() {
     exit 1
 }
 
-# Function to install PostgreSQL 15
+# Установка PostgreSQL 15
 install_postgresql() {
-    print_status "Installing PostgreSQL 15..."
+    print_status "Устанавливаем PostgreSQL 15..."
     sudo apt install -y postgresql postgresql-contrib postgresql-client
     sudo systemctl start postgresql
     sudo systemctl enable postgresql
-    print_success "PostgreSQL 15 installed successfully"
+    print_success "PostgreSQL 15 установлен"
 }
 
-# Function to install Redis
+# Установка Redis
 install_redis() {
-    print_status "Installing Redis..."
+    print_status "Устанавливаем Redis..."
     sudo apt install -y redis-server
     sudo systemctl start redis-server
     sudo systemctl enable redis-server
-    print_success "Redis installed successfully"
+    print_success "Redis установлен"
 }
 
-# Function to install Docker
+# Установка Docker
 install_docker() {
-    print_status "Installing Docker..."
+    print_status "Устанавливаем Docker..."
     
     # Remove old Docker packages
     sudo apt remove -y docker docker-engine docker.io containerd runc || true
@@ -306,12 +306,12 @@ install_docker() {
     # Add user to docker group
     sudo usermod -aG docker $USER || true
     newgrp docker || true
-    print_success "Docker installed successfully"
+    print_success "Docker установлен"
 }
 
-# Function to install additional tools
+# Установка дополнительных инструментов
 install_additional_tools() {
-    print_status "Installing additional tools..."
+    print_status "Устанавливаем дополнительные инструменты..."
     
     # Git LFS
     sudo apt install -y git-lfs
@@ -326,12 +326,12 @@ install_additional_tools() {
     # Useful CLI utilities used by scripts
     sudo apt install -y jq net-tools unzip make htop tree || true
     
-    print_success "Additional tools installed successfully"
+    print_success "Дополнительные инструменты установлены"
 }
 
-# Verify that all required dependencies are present and report versions
+# Проверка наличия зависимостей и вывод версий
 verify_dependencies() {
-    print_status "Verifying installed dependencies..."
+    print_status "Проверяем установленные зависимости..."
 
     # Commands
     declare -A CMDS=(
@@ -348,7 +348,7 @@ verify_dependencies() {
         if command -v "$cmd" >/dev/null 2>&1; then
             eval ${CMDS[$cmd]} || true
         else
-            print_warning "Missing command: $cmd"
+            print_warning "Отсутствует команда: $cmd"
             MISSING=1
         fi
     done
@@ -359,12 +359,12 @@ verify_dependencies() {
     elif command -v docker-compose >/dev/null 2>&1; then
         docker-compose --version
     else
-        print_warning "Missing Docker Compose (plugin or standalone)"
+        print_warning "Отсутствует Docker Compose (plugin или standalone)"
         MISSING=1
     fi
 
     # Services status
-    print_status "Checking services status (PostgreSQL/Redis/Docker)"
+    print_status "Проверяем статусы сервисов (PostgreSQL/Redis/Docker)"
     sudo systemctl is-enabled postgresql >/dev/null 2>&1 && echo "postgresql: enabled" || echo "postgresql: not enabled"
     sudo systemctl is-active postgresql >/dev/null 2>&1 && echo "postgresql: active" || echo "postgresql: inactive"
 
@@ -375,15 +375,15 @@ verify_dependencies() {
     sudo systemctl is-active docker >/dev/null 2>&1 && echo "docker: active" || echo "docker: inactive"
 
     if [ "${MISSING:-0}" = "1" ]; then
-        print_warning "One or more dependencies are missing. Attempting to continue, but build may fail."
+        print_warning "Отсутствуют зависимости. Продолжаем, но сборка может завершиться ошибкой."
     else
-        print_success "All required dependencies are present"
+        print_success "Все необходимые зависимости установлены"
     fi
 }
 
-# Function to configure PostgreSQL
+# Настройка PostgreSQL
 configure_postgresql() {
-    print_status "Configuring PostgreSQL..."
+    print_status "Настраиваем PostgreSQL..."
     
     # Set password for postgres user
     sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres123';" || true
@@ -409,12 +409,12 @@ configure_postgresql() {
     
     # Enable auto-start on boot
     sudo systemctl enable postgresql || true
-    print_success "PostgreSQL configured successfully"
+    print_success "PostgreSQL настроен"
 }
 
-# Function to configure Redis
+# Настройка Redis
 configure_redis() {
-    print_status "Configuring Redis..."
+    print_status "Настраиваем Redis..."
     
     # Set password for Redis
     sudo sed -i 's/# requirepass foobared/requirepass redis123/' /etc/redis/redis.conf
@@ -428,64 +428,64 @@ configure_redis() {
     # Enable auto-start on boot
     sudo systemctl enable redis-server || true
 
-    print_success "Redis configured successfully"
+    print_success "Redis настроен"
 }
 
-# Function to create project directory
+# Создание каталога проекта
 create_project_directory() {
-    print_status "Creating project directory..."
+    print_status "Создаём каталог проекта..."
     
     PROJECT_DIR="$HOME/workernet-portal"
     mkdir -p "$PROJECT_DIR"
     cd "$PROJECT_DIR"
     
-    print_success "Project directory created at $PROJECT_DIR"
+    print_success "Каталог проекта создан: $PROJECT_DIR"
 }
 
-# Function to clone repository
+# Клонирование/обновление репозитория
 clone_repository() {
-    print_status "Cloning/updating repository..."
+    print_status "Клонируем/обновляем репозиторий..."
 
     # Create directory if missing
     if [ ! -d "portal-support-ERP-WorkerNet" ]; then
         if git clone "$REPO_URL" portal-support-ERP-WorkerNet; then
             :
         elif [ -n "$REPO_URL_MIRROR" ]; then
-            print_warning "Primary repo unavailable, trying mirror: $REPO_URL_MIRROR"
+            print_warning "Основной репозиторий недоступен, пробуем зеркало: $REPO_URL_MIRROR"
             git clone "$REPO_URL_MIRROR" portal-support-ERP-WorkerNet
         else
-            print_error "Failed to clone repository"
+            print_error "Не удалось клонировать репозиторий"
             exit 1
         fi
     fi
 
     cd portal-support-ERP-WorkerNet
 
-    # Ensure remote URL is correct (prefer primary, otherwise keep existing)
+    # Гарантируем корректный origin (предпочитаем основной URL)
     CURRENT_URL=$(git remote get-url origin 2>/dev/null || echo "")
     if [ -n "$REPO_URL" ] && [ "$CURRENT_URL" != "$REPO_URL" ]; then
         git remote set-url origin "$REPO_URL" || true
     fi
 
-    # Fetch and hard-update to requested branch
+    # Обновляем ссылки и жёстко синхронизируемся с нужной веткой
     git fetch --all --prune || true
     # Determine default branch if requested not found
     if ! git show-ref --verify --quiet "refs/remotes/origin/$REPO_BRANCH"; then
         REPO_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
         REPO_BRANCH=${REPO_BRANCH:-main}
-        print_warning "Requested branch not found; using default: $REPO_BRANCH"
+        print_warning "Запрошенная ветка не найдена; используем ветку по умолчанию: $REPO_BRANCH"
     fi
 
     git checkout "$REPO_BRANCH" 2>/dev/null || git checkout -B "$REPO_BRANCH"
     git reset --hard "origin/$REPO_BRANCH" || true
     git submodule update --init --recursive || true
 
-    print_success "Repository is up-to-date (branch: $REPO_BRANCH)"
+    print_success "Репозиторий актуален (ветка: $REPO_BRANCH)"
 }
 
-# Function to setup environment (.env autogeneration with safe defaults)
+# Настройка окружения (.env с автогенерацией безопасных значений)
 setup_environment() {
-    print_status "Setting up environment (.env generation)..."
+    print_status "Настраиваем окружение (.env с автогенерацией)..."
 
     # Do not overwrite existing .env; back up if we need to update
     if [ -f .env ]; then
@@ -499,7 +499,7 @@ setup_environment() {
         elif [ -f .env.example ]; then
             cp .env.example .env
         else
-            print_error "env.example not found; cannot create .env"
+            print_error "env.example не найден; невозможно создать .env"
             exit 1
         fi
     fi
@@ -530,12 +530,12 @@ setup_environment() {
     grep -q "^DJANGO_SECRET_KEY=" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
     grep -q "^JWT_SECRET=" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
 
-    print_success "Environment configured (.env generated/updated)"
+    print_success ".env создан/обновлён"
 }
 
-# Function to setup Python virtual environment
+# Настройка виртуального окружения Python
 setup_python_env() {
-    print_status "Setting up Python virtual environment..."
+    print_status "Настраиваем виртуальное окружение Python..."
     
     cd backend
     python3 -m venv venv
@@ -547,34 +547,34 @@ setup_python_env() {
         python -m pip install -r ../requirements-dev.txt
     fi
     
-    print_success "Python virtual environment setup successfully"
+    print_success "Виртуальное окружение Python настроено"
 }
 
-# Function to setup Node.js environment
+# Настройка окружения Node.js
 setup_nodejs_env() {
-    print_status "Setting up Node.js environment..."
+    print_status "Настраиваем окружение Node.js..."
     
     cd ../frontend
     npm install
     
-    print_success "Node.js environment setup successfully"
+    print_success "Окружение Node.js настроено"
 }
 
-# Function to run database migrations
+# Применение миграций базы данных
 run_migrations() {
-    print_status "Running database migrations..."
+    print_status "Выполняем миграции базы данных..."
     
     cd ../backend
     source venv/bin/activate
     python manage.py migrate
     python manage.py collectstatic --noinput
     
-    print_success "Database migrations completed successfully"
+    print_success "Миграции выполнены"
 }
 
-# Function to create superuser
+# Создание суперпользователя
 create_superuser() {
-    print_status "Creating superuser..."
+    print_status "Создаём суперпользователя..."
     
     cd backend
     source venv/bin/activate
@@ -609,12 +609,12 @@ else:
     print('Superuser already exists')
 EOF
     
-    print_success "Superuser created successfully"
+    print_success "Суперпользователь создан"
 }
 
-# Function to setup systemd services
+# Настройка системных сервисов (systemd)
 setup_systemd_services() {
-    print_status "Setting up systemd services..."
+    print_status "Настраиваем системные сервисы (systemd)..."
     
     # Create systemd service for backend
     sudo tee /etc/systemd/system/workernet-backend.service > /dev/null << EOF
@@ -658,12 +658,12 @@ EOF
     sudo systemctl enable workernet-backend || true
     sudo systemctl enable workernet-frontend || true
     
-    print_success "Systemd services configured successfully"
+    print_success "Сервисы systemd настроены"
 }
 
-# Function to setup firewall
+# Настройка файрвола
 setup_firewall() {
-    print_status "Setting up firewall..."
+    print_status "Настраиваем файрвол..."
     
     sudo ufw enable
     sudo ufw allow 22      # SSH
@@ -674,61 +674,61 @@ setup_firewall() {
     sudo ufw allow 9090    # Prometheus
     sudo ufw allow 3001    # Grafana
     
-    print_success "Firewall configured successfully"
+    print_success "Файрвол настроен"
 }
 
-# Function to start services
+# Запуск сервисов
 start_services() {
-    print_status "Starting services..."
+    print_status "Запускаем сервисы..."
     
     # Start systemd services
     sudo systemctl start workernet-backend
     sudo systemctl start workernet-frontend
     
-    print_success "Services started successfully"
+    print_success "Сервисы запущены"
 }
 
-# Function to show final information
+# Финальная информация
 show_final_info() {
-    print_success "WorkerNet Portal installation completed successfully!"
+    print_success "Установка WorkerNet Portal успешно завершена!"
     echo
-    echo "=== Access Information ==="
-    echo "Frontend: http://localhost:3000"
+    echo "=== Доступ к сервисам ==="
+    echo "Фронтенд: http://localhost:3000"
     echo "API: http://localhost:8000"
-    echo "API Docs: http://localhost:8000/api/docs"
-    echo "Admin Panel: http://localhost:8000/admin"
+    echo "API документация: http://localhost:8000/api/docs"
+    echo "Админ‑панель: http://localhost:8000/admin"
     echo "Grafana: http://localhost:3001 (admin/admin123)"
     echo "Prometheus: http://localhost:9090"
     echo
-    echo "=== Default Credentials ==="
-    echo "Admin User: admin"
-    echo "Admin Password: admin123"
-    echo "Database User: workernet"
-    echo "Database Password: workernet123"
-    echo "Redis Password: redis123"
+    echo "=== Данные по умолчанию ==="
+    echo "Админ‑пользователь: admin"
+    echo "Пароль администратора: admin123"
+    echo "Пользователь БД: workernet"
+    echo "Пароль БД: workernet123"
+    echo "Пароль Redis: redis123"
     echo
-    echo "=== Service Management ==="
-    echo "Start services: sudo systemctl start workernet-backend workernet-frontend"
-    echo "Stop services: sudo systemctl stop workernet-backend workernet-frontend"
-    echo "Restart services: sudo systemctl restart workernet-backend workernet-frontend"
-    echo "Check status: sudo systemctl status workernet-backend workernet-frontend"
+    echo "=== Управление сервисами ==="
+    echo "Старт: sudo systemctl start workernet-backend workernet-frontend"
+    echo "Стоп: sudo systemctl stop workernet-backend workernet-frontend"
+    echo "Перезапуск: sudo systemctl restart workernet-backend workernet-frontend"
+    echo "Статус: sudo systemctl status workernet-backend workernet-frontend"
     echo
-    echo "=== Logs ==="
-    echo "Backend logs: sudo journalctl -u workernet-backend -f"
-    echo "Frontend logs: sudo journalctl -u workernet-frontend -f"
+    echo "=== Логи ==="
+    echo "Бэкенд: sudo journalctl -u workernet-backend -f"
+    echo "Фронтенд: sudo journalctl -u workernet-frontend -f"
     echo
-    echo "=== Next Steps ==="
-    echo "1. Access the application at http://localhost:3000"
-    echo "2. Login with admin/admin123"
-    echo "3. Configure your tenant settings"
-    echo "4. Set up monitoring in Grafana"
-    echo "5. Configure SSL certificates for production"
+    echo "=== Следующие шаги ==="
+    echo "1. Откройте приложение: http://localhost:3000"
+    echo "2. Войдите: admin/admin123"
+    echo "3. Настройте параметры тенанта"
+    echo "4. Настройте мониторинг в Grafana"
+    echo "5. Настройте SSL‑сертификаты для продакшена"
     echo
 }
 
 # Main installation function
 main() {
-    print_status "Starting WorkerNet Portal installation for Ubuntu 24.04 LTS..."
+    print_status "Запуск установки WorkerNet Portal для Ubuntu 24.04 LTS..."
     echo
     
     # Check prerequisites
