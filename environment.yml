@@ -1,0 +1,17 @@
+name: base
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - setuptools
+  - wheel
+  - openssl
+  - libffi
+  - zlib
+  - libpq
+  - ca-certificates
+  - pip:
+      - -r requirements-dev.txt
+
