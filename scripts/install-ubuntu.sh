@@ -167,63 +167,52 @@ install_python() {
     fi
 }
 
-# Function to install Node.js 18
+# Function to install Node.js 18 (with resilient fallbacks)
 install_nodejs() {
     print_status "Installing Node.js 18..."
+
+    # 1) NodeSource (обычно быстрее по версиям)
     if curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
        sudo apt install -y nodejs; then
-        print_success "Node.js 18 installed successfully (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-    else
-        print_warning "Failed to install from NodeSource. Falling back to Ubuntu repository..."
-        sudo apt update || true
-        if sudo apt install -y nodejs; then
-            # Try npm separately only if available without conflicts
-            sudo apt install -y npm || true
-            print_success "Node.js installed from Ubuntu repo (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-        else
-            print_warning "Ubuntu repo installation failed. Trying NVM..."
-            # Install NVM and Node 18 for the current user
-            curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-            # shellcheck source=/dev/null
-            source "$HOME/.nvm/nvm.sh" || true
-            if command -v nvm >/dev/null 2>&1; then
-                if ! nvm install 18; then
-                    print_warning "NVM install failed. Retrying with alternative mirror..."
-                    export NVM_NODEJS_ORG_MIRROR="https://npmmirror.com/mirrors/node"
-                    export NVM_IOJS_ORG_MIRROR="https://npmmirror.com/mirrors/iojs"
-                    nvm install 18 || true
-                fi
-                if command -v node >/dev/null 2>&1; then
-                    nvm alias default 18 && nvm use 18
-                    print_success "Node.js installed via NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-                else
-                    print_warning "NVM route failed. Trying Snap as last resort..."
-                    if sudo snap install node --channel=18/stable --classic; then
-                        # Ensure snap bin in PATH for non-login shells
-                        if ! echo "$PATH" | grep -q "/snap/bin"; then
-                            echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
-                            export PATH="/snap/bin:$PATH"
-                        fi
-                        print_success "Node.js installed via Snap (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-                    else
-                        print_error "Failed to install Node.js via all methods. Please check network connectivity and try again."
-                        exit 1
-                    fi
-                fi
-            else
-                print_warning "NVM not available after install. Trying Snap as last resort..."
-                if sudo snap install node --channel=18/stable --classic; then
-                    if ! echo "$PATH" | grep -q "/snap/bin"; then
-                        echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
-                        export PATH="/snap/bin:$PATH"
-                    fi
-                    print_success "Node.js installed via Snap (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-                else
-                    print_error "Failed to install Node.js via all methods. Please check network connectivity and try again."
-                exit 1
-            fi
+        print_success "Node.js 18 installed (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+        return 0
+    fi
+
+    print_warning "NodeSource недоступен. Пробую репозитории Ubuntu..."
+    sudo apt update || true
+    if sudo apt install -y nodejs npm; then
+        print_success "Node.js установлен из Ubuntu (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+        return 0
+    fi
+
+    print_warning "Репозитории Ubuntu недоступны. Пробую NVM..."
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
+    # shellcheck source=/dev/null
+    [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+    if command -v nvm >/dev/null 2>&1; then
+        # Зеркала, если github/nodejs недоступны
+        export NVM_NODEJS_ORG_MIRROR="https://npmmirror.com/mirrors/node"
+        export NVM_IOJS_ORG_MIRROR="https://npmmirror.com/mirrors/iojs"
+        if nvm install 18 && nvm alias default 18 && nvm use 18; then
+            print_success "Node.js установлен через NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+            npm config set registry https://registry.npmmirror.com || true
+            return 0
         fi
     fi
+
+    print_warning "NVM недоступен. Пробую Snap..."
+    if sudo snap install node --channel=18/stable --classic; then
+        if ! echo "$PATH" | grep -q "/snap/bin"; then
+            echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
+            export PATH="/snap/bin:$PATH"
+        fi
+        print_success "Node.js установлен через Snap (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+        npm config set registry https://registry.npmmirror.com || true
+        return 0
+    fi
+
+    print_error "Не удалось установить Node.js всеми способами. Проверьте сеть и повторите."
+    exit 1
 }
 
 # Function to install PostgreSQL 15
