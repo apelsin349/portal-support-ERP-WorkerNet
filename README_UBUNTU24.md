@@ -22,6 +22,12 @@ curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-Worke
 | bash
 ```
 
+### Если `docker compose` недоступен
+```bash
+sudo apt update
+sudo apt install -y docker-compose-plugin || sudo apt install -y docker-compose
+```
+
 ### 2) Системные требования
 - Ubuntu 24.04 LTS (или новее)
 - 4+ GB RAM

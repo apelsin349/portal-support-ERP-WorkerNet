@@ -24,6 +24,10 @@ curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-Worke
 git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
+# Установить Docker Compose (если команда docker compose недоступна)
+sudo apt update
+sudo apt install -y docker-compose-plugin || sudo apt install -y docker-compose
+
 # Запустить все сервисы
 chmod +x scripts/start-docker.sh
 ./scripts/start-docker.sh start

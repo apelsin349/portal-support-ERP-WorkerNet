@@ -240,15 +240,33 @@ install_docker() {
     # Remove old Docker packages
     sudo apt remove -y docker docker-engine docker.io containerd runc || true
     
-    # Install Docker
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    sudo apt update
-    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+    # Install Docker (prefer official repo)
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg || true
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null || true
+    sudo apt update || true
+    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || true
     
+    # If official failed, try ubuntu docker.io and compose plugin / standalone
+    if ! command -v docker >/dev/null 2>&1; then
+        sudo apt install -y docker.io || true
+    fi
+    # Compose V2 plugin (preferred)
+    sudo apt install -y docker-compose-plugin || true
+    # As a fallback, try standalone docker-compose if plugin unavailable
+    if ! docker compose version >/dev/null 2>&1; then
+        sudo apt install -y docker-compose || true
+        # Provide alias for consistency
+        if ! grep -q "alias docker-compose='docker compose'" "$HOME/.bashrc" 2>/dev/null; then
+            echo "alias docker-compose='docker compose'" >> "$HOME/.bashrc"
+        fi
+    fi
+
+    # Ensure Docker daemon enabled on boot
+    sudo systemctl enable --now docker || true
+
     # Add user to docker group
-    sudo usermod -aG docker $USER
-    newgrp docker
+    sudo usermod -aG docker $USER || true
+    newgrp docker || true
     print_success "Docker installed successfully"
 }
 
@@ -263,10 +281,65 @@ install_additional_tools() {
     # Python development tools
     sudo apt install -y python3-dev python3-venv python3-pip
     
-    # Database tools
-    sudo apt install -y postgresql-client-common postgresql-client-15
+    # Database tools (use generic client to match Ubuntu release)
+    sudo apt install -y postgresql-client-common postgresql-client || true
+
+    # Useful CLI utilities used by scripts
+    sudo apt install -y jq net-tools unzip make htop tree || true
     
     print_success "Additional tools installed successfully"
+}
+
+# Verify that all required dependencies are present and report versions
+verify_dependencies() {
+    print_status "Verifying installed dependencies..."
+
+    # Commands
+    declare -A CMDS=(
+        [curl]="curl --version | head -n1"
+        [git]="git --version"
+        [python3]="python3 -V"
+        [pip3]="pip3 -V"
+        [node]="node -v"
+        [npm]="npm -v"
+        [docker]="docker --version"
+    )
+
+    for cmd in "${!CMDS[@]}"; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            eval ${CMDS[$cmd]} || true
+        else
+            print_warning "Missing command: $cmd"
+            MISSING=1
+        fi
+    done
+
+    # Docker Compose (plugin or standalone)
+    if docker compose version >/dev/null 2>&1; then
+        docker compose version | head -n1
+    elif command -v docker-compose >/dev/null 2>&1; then
+        docker-compose --version
+    else
+        print_warning "Missing Docker Compose (plugin or standalone)"
+        MISSING=1
+    fi
+
+    # Services status
+    print_status "Checking services status (PostgreSQL/Redis/Docker)"
+    sudo systemctl is-enabled postgresql >/dev/null 2>&1 && echo "postgresql: enabled" || echo "postgresql: not enabled"
+    sudo systemctl is-active postgresql >/dev/null 2>&1 && echo "postgresql: active" || echo "postgresql: inactive"
+
+    sudo systemctl is-enabled redis-server >/dev/null 2>&1 && echo "redis-server: enabled" || echo "redis-server: not enabled" 
+    sudo systemctl is-active redis-server >/dev/null 2>&1 && echo "redis-server: active" || echo "redis-server: inactive"
+
+    sudo systemctl is-enabled docker >/dev/null 2>&1 && echo "docker: enabled" || echo "docker: not enabled"
+    sudo systemctl is-active docker >/dev/null 2>&1 && echo "docker: active" || echo "docker: inactive"
+
+    if [ "${MISSING:-0}" = "1" ]; then
+        print_warning "One or more dependencies are missing. Attempting to continue, but build may fail."
+    else
+        print_success "All required dependencies are present"
+    fi
 }
 
 # Function to configure PostgreSQL
@@ -283,6 +356,8 @@ configure_postgresql() {
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net TO workernet;"
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net_test TO workernet;"
     
+    # Enable auto-start on boot
+    sudo systemctl enable postgresql || true
     print_success "PostgreSQL configured successfully"
 }
 
@@ -299,7 +374,9 @@ configure_redis() {
     
     # Restart Redis
     sudo systemctl restart redis-server
-    
+    # Enable auto-start on boot
+    sudo systemctl enable redis-server || true
+
     print_success "Redis configured successfully"
 }
 
@@ -466,6 +543,9 @@ EOF
 
     # Reload systemd
     sudo systemctl daemon-reload
+    # Enable on boot
+    sudo systemctl enable workernet-backend || true
+    sudo systemctl enable workernet-frontend || true
     
     print_success "Systemd services configured successfully"
 }
@@ -493,8 +573,6 @@ start_services() {
     # Start systemd services
     sudo systemctl start workernet-backend
     sudo systemctl start workernet-frontend
-    sudo systemctl enable workernet-backend
-    sudo systemctl enable workernet-frontend
     
     print_success "Services started successfully"
 }
@@ -557,6 +635,7 @@ main() {
     install_redis
     install_docker
     install_additional_tools
+    verify_dependencies
     
     # Configuration
     configure_postgresql
