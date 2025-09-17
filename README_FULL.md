@@ -6,14 +6,14 @@
 
 ```bash
 # Скачать и запустить скрипт установки
-curl -fsSL https://raw.githubusercontent.com/your-org/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh | bash
+curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh | bash
 ```
 
 ### Запуск через Docker (рекомендуется)
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Запустить все сервисы
@@ -49,7 +49,7 @@ chmod +x scripts/ci-smoke-docker.sh
 
 ```bash
 # Скачать скрипт установки
-wget https://raw.githubusercontent.com/your-org/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh
+wget https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh
 
 # Сделать исполняемым
 chmod +x install-ubuntu.sh
@@ -62,7 +62,7 @@ chmod +x install-ubuntu.sh
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Настроить переменные окружения
@@ -535,8 +535,8 @@ MIT License - см. файл [LICENSE](LICENSE) для деталей.
 
 ## 📞 Поддержка
 
-- **Issues**: [GitHub Issues](https://github.com/your-org/portal-support-ERP-WorkerNet/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/portal-support-ERP-WorkerNet/discussions)
+- **Issues**: [GitHub Issues](https://github.com/apelsin349/portal-support-ERP-WorkerNet/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/apelsin349/portal-support-ERP-WorkerNet/discussions)
 - **Email**: support@workernet.com
 - **Documentation**: [docs.workernet.com](https://docs.workernet.com)
 

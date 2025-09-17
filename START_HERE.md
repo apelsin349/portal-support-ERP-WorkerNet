@@ -8,7 +8,7 @@ WorkerNet Portal - это современная система техничес
 
 ### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 ```
 
