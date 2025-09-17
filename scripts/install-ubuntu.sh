@@ -537,6 +537,14 @@ setup_environment() {
     # Ensure required minimum set if keys were entirely absent
     grep -q "^DJANGO_SECRET_KEY=" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
     grep -q "^JWT_SECRET=" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
+    # Для совместимости с настройками Django/DRF SimpleJWT
+    grep -q "^SECRET_KEY=" .env || echo "SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+    grep -q "^JWT_SECRET_KEY=" .env || echo "JWT_SECRET_KEY=$(esc "$JWT_SECRET")" >> .env
+
+    # Продублируем .env в backend/, чтобы Django гарантированно его увидел
+    if [ -d backend ]; then
+        cp -f .env backend/.env || true
+    fi
 
     print_success ".env создан/обновлён"
 }
@@ -554,6 +562,8 @@ setup_python_env() {
     if [ -f ../requirements-dev.txt ]; then
         python -m pip install -r ../requirements-dev.txt
     fi
+    # Страховка: принудительная установка django-filter (если файл зависимостей локально устарел)
+    python -m pip install "django-filter==23.5" || true
     
     print_success "Виртуальное окружение Python настроено"
 }
@@ -848,6 +858,8 @@ main() {
     create_project_directory
     clone_repository
     setup_environment
+    # Гарантируем наличие каталога логов бэкенда до миграций
+    mkdir -p backend/logs || true
     setup_python_env
     setup_nodejs_env
     run_migrations

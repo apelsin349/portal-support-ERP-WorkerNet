@@ -160,6 +160,9 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+# Если при миграциях увидите ошибку ModuleNotFoundError: django_filters
+# установите пакет явно (или обновите файл requirements.txt из репозитория):
+pip install django-filter==23.5
 
 # Установить Node.js зависимости
 cd ../frontend

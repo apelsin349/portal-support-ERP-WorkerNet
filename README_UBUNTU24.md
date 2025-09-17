@@ -128,6 +128,9 @@ python -m pip install -r ../requirements.txt
 if [ -f ../requirements-dev.txt ]; then
   python -m pip install -r ../requirements-dev.txt
 fi
+# Если при миграциях видите ошибку "ModuleNotFoundError: django_filters" —
+# установите пакет явно (или обновите локальный requirements.txt):
+python -m pip install django-filter==23.5
 ```
 
 ### 4. Настройка базы данных PostgreSQL
