@@ -76,6 +76,47 @@ check_url() {
     curl -sSfI --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" "$1" >/dev/null 2>&1
 }
 
+# Раннее обновление репозитория проекта (если он уже есть на сервере)
+early_update_repository() {
+    print_status "Пробуем рано обновить файлы проекта (если репозиторий уже существует)..."
+    if ! command -v git >/dev/null 2>&1; then
+        print_warning "git не установлен, пропускаем раннее обновление"
+        return 0
+    fi
+
+    # Кандидаты на корень репозитория
+    CANDIDATES=(
+        "$(pwd)"
+        "$HOME/workernet-portal/portal-support-ERP-WorkerNet"
+        "$HOME/portal-support-ERP-WorkerNet"
+    )
+
+    for dir in "${CANDIDATES[@]}"; do
+        if [ -d "$dir/.git" ] && [ -f "$dir/scripts/install-ubuntu.sh" ]; then
+            print_status "Найден репозиторий: $dir — обновляем..."
+            (
+                cd "$dir" || exit 0
+                git remote -v >/dev/null 2>&1 || exit 0
+                # Выбираем origin URL и ветку
+                ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+                [ -n "$REPO_URL" ] && [ "$ORIGIN_URL" != "$REPO_URL" ] && git remote set-url origin "$REPO_URL" || true
+                git fetch --all --prune || true
+                # Выбор ветки
+                BR=${REPO_BRANCH:-$(git remote show origin | awk '/HEAD branch/ {print $NF}')}
+                BR=${BR:-main}
+                git checkout "$BR" 2>/dev/null || git checkout -B "$BR" || true
+                git reset --hard "origin/$BR" || true
+                git submodule update --init --recursive || true
+            )
+            export WORKERNET_ROOT="$dir"
+            print_success "Репозиторий обновлён: $dir"
+            return 0
+        fi
+    done
+
+    print_status "Существующий репозиторий не найден — перейдём к стандартной установке."
+}
+
 # Проверяем доступность внешних репозиториев и настраиваем запасные источники
 check_connectivity() {
     print_status "Проверяем доступность внешних репозиториев..."
@@ -916,6 +957,9 @@ show_final_info() {
 main() {
     print_status "Запуск установки WorkerNet Portal для Ubuntu 24.04 LTS..."
     echo
+    
+    # Раннее обновление проекта, если уже клонирован
+    early_update_repository
     
     # Check prerequisites
     check_root
