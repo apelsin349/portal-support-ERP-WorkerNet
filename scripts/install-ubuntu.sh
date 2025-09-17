@@ -602,14 +602,25 @@ setup_environment() {
 setup_python_env() {
     print_status "Настраиваем виртуальное окружение Python..."
     
+    # Проверяем существование каталога backend
+    if [ ! -d "$WORKERNET_ROOT/backend" ]; then
+        print_error "Каталог backend не найден: $WORKERNET_ROOT/backend"
+        exit 1
+    fi
+    
     cd "$WORKERNET_ROOT/backend"
     "${WORKERNET_PY3:-python3}" -m venv venv
     source venv/bin/activate
     python -m pip install -U pip setuptools wheel
     # Install from repo root to avoid CWD issues
-    python -m pip install -r ../requirements.txt
-    if [ -f ../requirements-dev.txt ]; then
-        python -m pip install -r ../requirements-dev.txt
+    if [ -f "$WORKERNET_ROOT/requirements.txt" ]; then
+        python -m pip install -r "$WORKERNET_ROOT/requirements.txt"
+    else
+        print_error "Файл requirements.txt не найден: $WORKERNET_ROOT/requirements.txt"
+        exit 1
+    fi
+    if [ -f "$WORKERNET_ROOT/requirements-dev.txt" ]; then
+        python -m pip install -r "$WORKERNET_ROOT/requirements-dev.txt"
     fi
     # Страховка: принудительная установка django-filter (если файл зависимостей локально устарел)
     python -m pip install "django-filter==23.5" || true
@@ -622,25 +633,31 @@ setup_nodejs_env() {
     print_status "Настраиваем окружение Node.js..."
     
     # Ищем каталог фронтенда максимально устойчиво
-    CANDIDATES=(
-        "${WORKERNET_ROOT}/frontend"
-        "../frontend"
-        "./frontend"
-        "../../frontend"
-    )
-    # Попытка извлечь корень git-репозитория и добавить как кандидат
-    GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
-    if [ -n "$GIT_ROOT" ] && [ -d "$GIT_ROOT/frontend" ]; then
-        CANDIDATES+=("$GIT_ROOT/frontend")
-    fi
-    if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "${WORKERNET_ROOT}/frontend" ]; then
-        CANDIDATES+=("${WORKERNET_ROOT}/frontend")
-    fi
-
     FRONTEND_DIR=""
-    for p in "${CANDIDATES[@]}"; do
-        if [ -f "$p/package.json" ]; then FRONTEND_DIR="$p"; break; fi
-    done
+    
+    if [ -n "${WORKERNET_ROOT:-}" ]; then
+        # Если WORKERNET_ROOT определен, используем его
+        FRONTEND_DIR="${WORKERNET_ROOT}/frontend"
+        if [ ! -f "$FRONTEND_DIR/package.json" ]; then
+            FRONTEND_DIR=""
+        fi
+    else
+        # Fallback логика для случаев, когда WORKERNET_ROOT не определен
+        CANDIDATES=(
+            "../frontend"
+            "./frontend"
+            "../../frontend"
+        )
+        # Попытка извлечь корень git-репозитория и добавить как кандидат
+        GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+        if [ -n "$GIT_ROOT" ] && [ -d "$GIT_ROOT/frontend" ]; then
+            CANDIDATES+=("$GIT_ROOT/frontend")
+        fi
+        
+        for p in "${CANDIDATES[@]}"; do
+            if [ -f "$p/package.json" ]; then FRONTEND_DIR="$p"; break; fi
+        done
+    fi
 
     # Если не нашли — пробуем поискать в $HOME (ограничим глубину для скорости)
     if [ -z "$FRONTEND_DIR" ]; then
@@ -654,6 +671,12 @@ setup_nodejs_env() {
         print_warning "Каталог фронтенда не найден. Пропускаем установку npm-зависимостей."
         echo "Подсказка: ожидается каталог 'frontend' с package.json."
         return 0
+    fi
+
+    # Проверяем существование каталога frontend
+    if [ ! -d "$FRONTEND_DIR" ]; then
+        print_error "Каталог frontend не найден: $FRONTEND_DIR"
+        return 1
     fi
 
     cd "$FRONTEND_DIR"
@@ -718,6 +741,12 @@ setup_nodejs_env() {
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
     
+    # Проверяем существование каталога backend
+    if [ ! -d "$WORKERNET_ROOT/backend" ]; then
+        print_error "Каталог backend не найден: $WORKERNET_ROOT/backend"
+        exit 1
+    fi
+    
     cd "$WORKERNET_ROOT/backend"
     source venv/bin/activate
     python manage.py migrate
@@ -729,6 +758,12 @@ run_migrations() {
 # Создание суперпользователя
 create_superuser() {
     print_status "Создаём суперпользователя..."
+    
+    # Проверяем существование каталога backend
+    if [ ! -d "$WORKERNET_ROOT/backend" ]; then
+        print_error "Каталог backend не найден: $WORKERNET_ROOT/backend"
+        exit 1
+    fi
     
     cd "$WORKERNET_ROOT/backend"
     source venv/bin/activate
