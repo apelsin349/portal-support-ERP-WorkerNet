@@ -56,7 +56,7 @@ chmod +x scripts/*.sh
 
 # Скачать и запустить установщик (с корректной ссылкой на репозиторий)
 curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh \
-| sed 's|https://github.com/your-org/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' \
+| sed 's|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' \
 | bash
 ```
 
