@@ -56,6 +56,12 @@ sudo apt install -y python3 python3-venv python3-dev python3-pip
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install -y nodejs
+# Если NodeSource недоступен или возникают конфликты — удалите источник и используйте NVM:
+# sudo rm -f /etc/apt/sources.list.d/nodesource.list
+# sudo apt update
+# curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# . ~/.nvm/nvm.sh && nvm install 18 && nvm use 18 && nvm alias default 18
+# cd ~ && npm -v || echo "npm временно недоступен — повторите nvm install/use из домашней директории"
 ```
 
 ### 5. Установка PostgreSQL 15+
@@ -297,7 +303,40 @@ psql -U workernet -d worker_net < backup.sql
 
 ## 🛠️ Устранение неполадок
 
-### 1. Проблемы с Docker
+### 1. NodeSource не качается / таймауты
+```bash
+# Очистить проблемный источник и обновить APT
+sudo rm -f /etc/apt/sources.list.d/nodesource.list
+sudo apt update
+
+# Использовать NVM как резервный способ
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+. ~/.nvm/nvm.sh
+nvm install 18 && nvm use 18 && nvm alias default 18
+
+# Важно: выполнять npm из домашней директории, чтобы избежать ENOENT uv_cwd
+cd ~ && npm -v
+```
+
+### 2. NPM падает с ошибкой ENOENT/uv_cwd
+```bash
+cd ~
+. ~/.nvm/nvm.sh
+nvm use 18
+npm -v  # должна вывести версию
+```
+
+### 3. Предупреждение APT: "Missing Signed-By ... for http://ru.archive.ubuntu.com/ubuntu"
+- Это предупреждение допустимо для стандартных зеркал Ubuntu. Можно игнорировать.
+- Чтобы вернуться на зеркала Ubuntu по умолчанию:
+```bash
+sudo cp -f /etc/apt/sources.list.bak /etc/apt/sources.list 2>/dev/null || true
+sudo sed -i 's|http://ru.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list
+sudo sed -i 's|http://ru.archive.ubuntu.com/ubuntu|http://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list
+sudo apt update
+```
+
+### 4. Проблемы с Docker
 ```bash
 # Очистка Docker
 docker system prune -a
@@ -308,7 +347,7 @@ docker-compose down
 docker-compose up -d --build
 ```
 
-### 2. Проблемы с базой данных
+### 5. Проблемы с базой данных
 ```bash
 # Проверка подключения
 psql -U workernet -d worker_net -h localhost
@@ -319,7 +358,7 @@ createdb -U workernet worker_net
 python manage.py migrate
 ```
 
-### 3. Проблемы с Redis
+### 6. Проблемы с Redis
 ```bash
 # Проверка статуса
 redis-cli ping
@@ -328,7 +367,7 @@ redis-cli ping
 redis-cli flushall
 ```
 
-### 4. Проблемы с портами
+### 7. Проблемы с портами
 ```bash
 # Проверка занятых портов
 sudo netstat -tulpn | grep :8000

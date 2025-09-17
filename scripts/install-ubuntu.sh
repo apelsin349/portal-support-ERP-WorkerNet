@@ -196,6 +196,10 @@ install_nodejs() {
     fi
 
     print_warning "NodeSource недоступен. Пробую репозитории Ubuntu..."
+    # Очистка потенциально проблемного источника NodeSource, чтобы не мешал APT
+    if [ -f /etc/apt/sources.list.d/nodesource.list ]; then
+        sudo rm -f /etc/apt/sources.list.d/nodesource.list || true
+    fi
     sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
     # Устанавливаем только nodejs, npm подтянется при необходимости или есть в комплекте
     if sudo apt install -y nodejs; then
@@ -208,7 +212,7 @@ install_nodejs() {
     fi
 
     print_warning "Репозитории Ubuntu недоступны. Пробую NVM..."
-    (
+    ( 
         cd "$HOME" || true
         curl $CURL_OPTS https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || true
     )
@@ -220,8 +224,17 @@ install_nodejs() {
         export NVM_IOJS_ORG_MIRROR="https://npmmirror.com/mirrors/iojs"
         if nvm install 18 && nvm alias default 18 && nvm use 18; then
             print_success "Node.js установлен через NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
-            # Защита от ошибок npm при отсутствии валидной CWD
-            ( cd "$HOME" && npm config set registry https://registry.npmmirror.com && npm -v ) || true
+            # Защита от ошибок npm при отсутствии валидной CWD и верификация npm
+            if ( cd "$HOME" && npm -v >/dev/null 2>&1 ); then
+                ( cd "$HOME" && npm config set registry https://registry.npmmirror.com ) || true
+            else
+                print_warning "npm недоступен после установки NVM. Пробую переустановить Node 18..."
+                nvm uninstall 18 || true
+                nvm install 18 || true
+                nvm alias default 18 || true
+                nvm use 18 || true
+                ( cd "$HOME" && npm -v ) || print_warning "npm всё ещё недоступен; продолжайте с Node без npm или установите npm вручную."
+            fi
             return 0
         fi
     fi
