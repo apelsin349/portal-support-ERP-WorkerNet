@@ -564,6 +564,12 @@ setup_nodejs_env() {
     npm config set fetch-retry-maxtimeout 120000 >/dev/null 2>&1 || true
     npm config set fetch-timeout 120000 >/dev/null 2>&1 || true
 
+    # Автоподхват системного корневого хранилища сертификатов (для корпоративных прокси/MITM)
+    if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+        npm config set cafile /etc/ssl/certs/ca-certificates.crt >/dev/null 2>&1 || true
+        npm config set strict-ssl true >/dev/null 2>&1 || true
+    fi
+
     # Прокси из переменных окружения, если заданы
     if [ -n "${HTTPS_PROXY:-${https_proxy:-}}" ]; then
         npm config set https-proxy "${HTTPS_PROXY:-${https_proxy}}" >/dev/null 2>&1 || true
