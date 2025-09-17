@@ -554,7 +554,16 @@ setup_python_env() {
 setup_nodejs_env() {
     print_status "Настраиваем окружение Node.js..."
     
-    cd ../frontend
+    # Переходим в каталог фронтенда надёжно (абсолютный путь), иначе пробуем относительный
+    if [ -f "$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend/package.json" ]; then
+        cd "$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend"
+    elif [ -f "../frontend/package.json" ]; then
+        cd ../frontend
+    else
+        print_error "Не найден package.json фронтенда. Ожидалось по пути: $HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend"
+        echo "Проверьте, что репозиторий клонирован и структура каталогов стандартная."
+        exit 1
+    fi
     # Базовые настройки npm
     npm config set fund false >/dev/null 2>&1 || true
     npm config set audit false >/dev/null 2>&1 || true
