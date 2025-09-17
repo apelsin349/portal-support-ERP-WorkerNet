@@ -29,6 +29,56 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Simple reachability check (HEAD)
+check_url() {
+    curl -sSfI --max-time 5 "$1" >/dev/null 2>&1
+}
+
+# Check external repos and set fallbacks
+check_connectivity() {
+    print_status "Checking external repositories reachability..."
+    APT_PRIMARY_OK=true
+    DOCKER_OK=true
+    NODESOURCE_OK=true
+    GITHUB_OK=true
+    GITHUB_RAW_OK=true
+    PYPI_OK=true
+
+    # Ubuntu archives
+    if ! check_url "http://archive.ubuntu.com/ubuntu/"; then APT_PRIMARY_OK=false; fi
+
+    # Docker repo
+    if ! check_url "https://download.docker.com/linux/ubuntu/dists/"; then DOCKER_OK=false; fi
+
+    # NodeSource
+    if ! check_url "https://deb.nodesource.com/"; then NODESOURCE_OK=false; fi
+
+    # GitHub and raw
+    if ! check_url "https://github.com/"; then GITHUB_OK=false; fi
+    if ! check_url "https://raw.githubusercontent.com/"; then GITHUB_RAW_OK=false; fi
+
+    # PyPI
+    if ! check_url "https://pypi.org/simple/"; then PYPI_OK=false; fi
+
+    $APT_PRIMARY_OK && ok "APT primary mirror reachable" || print_warning "APT primary mirror not reachable"
+    $DOCKER_OK && ok "Docker repo reachable" || print_warning "Docker repo not reachable"
+    $NODESOURCE_OK && ok "NodeSource reachable" || print_warning "NodeSource not reachable"
+    $GITHUB_OK && ok "GitHub reachable" || print_warning "GitHub not reachable"
+    $GITHUB_RAW_OK && ok "GitHub RAW reachable" || print_warning "GitHub RAW not reachable"
+    $PYPI_OK && ok "PyPI reachable" || print_warning "PyPI not reachable"
+}
+
+# Try to switch APT mirrors to RU mirror if primary is down
+configure_apt_mirror_if_needed() {
+    if [ "$APT_PRIMARY_OK" = false ]; then
+        print_warning "Switching APT mirrors to ru.archive.ubuntu.com"
+        sudo cp -f /etc/apt/sources.list /etc/apt/sources.list.bak || true
+        sudo sed -i 's|http://archive.ubuntu.com/ubuntu/|http://ru.archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list || true
+        sudo sed -i 's|http://security.ubuntu.com/ubuntu|http://ru.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true
+    fi
+    sudo apt update || true
+}
+
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -470,6 +520,8 @@ main() {
     # Check prerequisites
     check_root
     check_ubuntu_version
+    check_connectivity
+    configure_apt_mirror_if_needed
     
     # Installation steps
     update_system
