@@ -108,16 +108,20 @@ cd portal-support-ERP-WorkerNet
 
 ### 2. Создание виртуального окружения Python
 ```bash
+# Создаём окружение в каталоге backend
 cd backend
 python3 -m venv venv
 source venv/bin/activate
-pip install --upgrade pip
+python -m pip install -U pip setuptools wheel
 ```
 
 ### 3. Установка Python зависимостей
 ```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+# Запускаем установку из корня репозитория, чтобы путь к файлам был корректный
+python -m pip install -r ../requirements.txt
+if [ -f ../requirements-dev.txt ]; then
+  python -m pip install -r ../requirements-dev.txt
+fi
 ```
 
 ### 4. Настройка базы данных PostgreSQL

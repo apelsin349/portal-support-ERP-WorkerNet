@@ -43,7 +43,7 @@ sudo apt update && sudo apt install -y python3.11 nodejs postgresql redis-server
 sudo -u postgres psql -c "CREATE DATABASE worker_net; CREATE USER workernet WITH PASSWORD 'workernet123'; GRANT ALL PRIVILEGES ON DATABASE worker_net TO workernet;"
 
 # Установить приложение
-cd backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+cd backend && python3 -m venv venv && source venv/bin/activate && python -m pip install -U pip setuptools wheel && python -m pip install -r ../requirements.txt
 cd ../frontend && npm install
 
 # Запустить

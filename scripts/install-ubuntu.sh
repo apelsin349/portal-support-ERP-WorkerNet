@@ -515,9 +515,12 @@ setup_python_env() {
     cd backend
     python3 -m venv venv
     source venv/bin/activate
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    pip install -r requirements-dev.txt
+    python -m pip install -U pip setuptools wheel
+    # Install from repo root to avoid CWD issues
+    python -m pip install -r ../requirements.txt
+    if [ -f ../requirements-dev.txt ]; then
+        python -m pip install -r ../requirements-dev.txt
+    fi
     
     print_success "Python virtual environment setup successfully"
 }
