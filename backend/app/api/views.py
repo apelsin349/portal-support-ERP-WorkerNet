@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Q
+from django.utils import timezone
+from django.conf import settings
 
 from app.models.ticket import Ticket, TicketComment, TicketAttachment
 from app.models.knowledge import KnowledgeArticle, KnowledgeCategory

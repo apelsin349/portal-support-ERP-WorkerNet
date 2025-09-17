@@ -16,7 +16,8 @@ env = environ.Env(
 )
 
 # Read .env file
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+# Load variables from .env if present
+env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY')

@@ -6,7 +6,8 @@ from django.contrib.auth import get_user_model
 
 from app.models.ticket import Ticket, TicketComment, TicketAttachment, Tag, SLA, TicketSLA
 from app.models.knowledge import KnowledgeArticle, KnowledgeCategory, KnowledgeArticleRating
-from app.models.tenant import User, Tenant, TenantConfiguration
+from app.models.tenant import Tenant, TenantConfiguration
+from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
