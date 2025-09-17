@@ -34,8 +34,14 @@ CURL_MAX_TIME=${CURL_MAX_TIME:-10}
 CURL_OPTS="--fail --silent --show-error --location --connect-timeout $CURL_CONNECT_TIMEOUT --max-time $CURL_MAX_TIME"
 
 # Таймауты APT
-APT_HTTP_TIMEOUT=${APT_HTTP_TIMEOUT:-5}
-APT_HTTPS_TIMEOUT=${APT_HTTPS_TIMEOUT:-5}
+APT_HTTP_TIMEOUT=${APT_HTTP_TIMEOUT:-25}
+APT_HTTPS_TIMEOUT=${APT_HTTPS_TIMEOUT:-25}
+
+# Параметры по умолчанию для паролей/секретов (можно переопределить окружением)
+WORKERNET_DB_PASS="${WORKERNET_DB_PASS:-workernet123}"
+WORKERNET_REDIS_PASS="${WORKERNET_REDIS_PASS:-redis123}"
+WORKERNET_ADMIN_PASS="${WORKERNET_ADMIN_PASS:-admin123}"
+WORKERNET_POSTGRES_SUPER_PASS="${WORKERNET_POSTGRES_SUPER_PASS:-postgres123}"
 
 # Function to print colored output
 print_status() {
@@ -61,7 +67,7 @@ ok() {
 
 # Простая проверка доступности URL (HEAD)
 check_url() {
-    curl -sSfI --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_CONNECT_TIMEOUT" "$1" >/dev/null 2>&1
+    curl -sSfI --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" "$1" >/dev/null 2>&1
 }
 
 # Проверяем доступность внешних репозиториев и настраиваем запасные источники
@@ -131,11 +137,15 @@ check_ubuntu_version() {
     
     UBUNTU_VERSION=$(lsb_release -rs)
     if [[ "$UBUNTU_VERSION" != "24.04" ]]; then
-        print_warning "Скрипт рассчитан на Ubuntu 24.04 LTS. Обнаружена версия $UBUNTU_VERSION"
-        read -p "Продолжить в любом случае? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+        if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" || "${WORKERNET_YES:-0}" = "1" ]]; then
+            print_warning "Скрипт рассчитан на Ubuntu 24.04 LTS. Обнаружена версия $UBUNTU_VERSION — продолжаем в неинтерактивном режиме"
+        else
+            print_warning "Скрипт рассчитан на Ubuntu 24.04 LTS. Обнаружена версия $UBUNTU_VERSION"
+            read -p "Продолжить в любом случае? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
         fi
     fi
 }
@@ -185,9 +195,10 @@ install_python() {
     fi
 
     if [[ -n "$PYTHON_TARGET" && -x "$PYTHON_TARGET" ]]; then
-        sudo update-alternatives --install /usr/bin/python3 python3 "$PYTHON_TARGET" 1
+        export WORKERNET_PY3="$PYTHON_TARGET"
         print_success "Python установлен ($("$PYTHON_TARGET" -V 2>&1))"
     else
+        export WORKERNET_PY3="$(command -v python3)"
         print_success "Python установлен ($(python3 -V 2>&1))"
     fi
 }
@@ -248,6 +259,10 @@ install_nodejs() {
     fi
 
     print_warning "NVM недоступен. Пробуем Snap..."
+    if ! command -v snap >/dev/null 2>&1; then
+        sudo apt install -y snapd
+        sudo systemctl enable --now snapd || true
+    fi
     if sudo snap install node --channel=18/stable --classic; then
         if ! echo "$PATH" | grep -q "/snap/bin"; then
             echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
@@ -262,13 +277,13 @@ install_nodejs() {
     exit 1
 }
 
-# Установка PostgreSQL 15
+# Установка PostgreSQL
 install_postgresql() {
-    print_status "Устанавливаем PostgreSQL 15..."
+    print_status "Устанавливаем PostgreSQL..."
     sudo apt install -y postgresql postgresql-contrib postgresql-client
     sudo systemctl start postgresql
     sudo systemctl enable postgresql
-    print_success "PostgreSQL 15 установлен"
+    print_success "PostgreSQL установлен ($(psql --version 2>/dev/null || echo unknown))"
 }
 
 # Установка Redis
@@ -293,19 +308,17 @@ install_docker() {
     sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update || true
     sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || true
     
-    # If official failed, try ubuntu docker.io and compose plugin / standalone
+    # If official failed, switch cleanly to ubuntu docker.io and standalone compose
     if ! command -v docker >/dev/null 2>&1; then
-        sudo apt install -y docker.io || true
-    fi
-    # Compose V2 plugin (preferred)
-    sudo apt install -y docker-compose-plugin || true
-    # As a fallback, try standalone docker-compose if plugin unavailable
-    if ! docker compose version >/dev/null 2>&1; then
-        sudo apt install -y docker-compose || true
-        # Provide alias for consistency
+        print_warning "Официальный репозиторий Docker недоступен, переключаемся на docker.io"
+        sudo apt remove -y docker-ce docker-ce-cli containerd.io docker-compose-plugin || true
+        sudo apt install -y docker.io docker-compose || true
         if ! grep -q "alias docker-compose='docker compose'" "$HOME/.bashrc" 2>/dev/null; then
             echo "alias docker-compose='docker compose'" >> "$HOME/.bashrc"
         fi
+    else
+        # Ensure compose plugin when using docker-ce
+        sudo apt install -y docker-compose-plugin || true
     fi
 
     # Ensure Docker daemon enabled on boot
@@ -313,7 +326,7 @@ install_docker() {
 
     # Add user to docker group
     sudo usermod -aG docker $USER || true
-    newgrp docker || true
+    print_warning "Чтобы использовать docker без sudo, выйдите и войдите в систему заново."
     print_success "Docker установлен"
 }
 
@@ -394,13 +407,13 @@ configure_postgresql() {
     print_status "Настраиваем PostgreSQL..."
     
     # Set password for postgres user
-    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres123';" || true
+    sudo -u postgres psql -c "ALTER USER postgres PASSWORD '${WORKERNET_POSTGRES_SUPER_PASS}';" || true
     
     # Create user if not exists and set password
     if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='workernet'" | grep -q 1; then
-        sudo -u postgres psql -c "CREATE USER workernet WITH PASSWORD 'workernet123';"
+        sudo -u postgres psql -c "CREATE USER workernet WITH PASSWORD '${WORKERNET_DB_PASS}';"
     else
-        sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD 'workernet123';" || true
+        sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD '${WORKERNET_DB_PASS}';" || true
     fi
 
     # Create databases if not exist
@@ -424,12 +437,15 @@ configure_postgresql() {
 configure_redis() {
     print_status "Настраиваем Redis..."
     
-    # Set password for Redis
-    sudo sed -i 's/# requirepass foobared/requirepass redis123/' /etc/redis/redis.conf
+    # Set password for Redis (robust replace or append)
+    sudo sed -i "s/^[#[:space:]]*requirepass .*/requirepass ${WORKERNET_REDIS_PASS}/" /etc/redis/redis.conf || true
+    grep -q "^requirepass" /etc/redis/redis.conf || echo "requirepass ${WORKERNET_REDIS_PASS}" | sudo tee -a /etc/redis/redis.conf >/dev/null
     
-    # Configure Redis for better performance
-    sudo sed -i 's/# maxmemory <bytes>/maxmemory 512mb/' /etc/redis/redis.conf
-    sudo sed -i 's/# maxmemory-policy noeviction/maxmemory-policy allkeys-lru/' /etc/redis/redis.conf
+    # Configure Redis for better performance (robust replace or append)
+    sudo sed -i "s/^[#[:space:]]*maxmemory .*/maxmemory 512mb/" /etc/redis/redis.conf || true
+    grep -q "^maxmemory 512mb" /etc/redis/redis.conf || echo "maxmemory 512mb" | sudo tee -a /etc/redis/redis.conf >/dev/null
+    sudo sed -i "s/^[#[:space:]]*maxmemory-policy .*/maxmemory-policy allkeys-lru/" /etc/redis/redis.conf || true
+    grep -q "^maxmemory-policy allkeys-lru" /etc/redis/redis.conf || echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf >/dev/null
     
     # Restart Redis
     sudo systemctl restart redis-server
@@ -538,10 +554,10 @@ setup_environment() {
     fi
     # Defaults for DB/Redis if placeholders exist
     if grep -q "your-redis-password" .env; then
-        sed -i "s|your-redis-password|redis123|" .env
+        sed -i "s|your-redis-password|${WORKERNET_REDIS_PASS}|" .env
     fi
     if grep -q "your-secure-password" .env; then
-        sed -i "s|your-secure-password|workernet123|" .env
+        sed -i "s|your-secure-password|${WORKERNET_DB_PASS}|" .env
     fi
 
     # Ensure required minimum set if keys were entirely absent
@@ -564,7 +580,7 @@ setup_python_env() {
     print_status "Настраиваем виртуальное окружение Python..."
     
     cd backend
-    python3 -m venv venv
+    "${WORKERNET_PY3:-python3}" -m venv venv
     source venv/bin/activate
     python -m pip install -U pip setuptools wheel
     # Install from repo root to avoid CWD issues
@@ -713,10 +729,10 @@ if not User.objects.filter(username='admin').exists():
     User.objects.create_superuser(
         username='admin',
         email='admin@workernet.com',
-        password='admin123',
+        password='${WORKERNET_ADMIN_PASS}',
         tenant=tenant
     )
-    print('Superuser created: admin/admin123')
+    print('Superuser created: admin/${WORKERNET_ADMIN_PASS}')
 else:
     print('Superuser already exists')
 EOF
@@ -777,14 +793,13 @@ EOF
 setup_firewall() {
     print_status "Настраиваем файрвол..."
     
-    sudo ufw enable
+    sudo ufw --force enable
     sudo ufw allow 22      # SSH
     sudo ufw allow 80      # HTTP
     sudo ufw allow 443     # HTTPS
     sudo ufw allow 3000    # Frontend
     sudo ufw allow 8000    # API
-    sudo ufw allow 9090    # Prometheus
-    sudo ufw allow 3001    # Grafana
+    # Порты мониторинга отключены по умолчанию (установка стека не входит в скрипт)
     
     print_success "Файрвол настроен"
 }
@@ -809,15 +824,14 @@ show_final_info() {
     echo "API: http://localhost:8000"
     echo "API документация: http://localhost:8000/api/docs"
     echo "Админ‑панель: http://localhost:8000/admin"
-    echo "Grafana: http://localhost:3001 (admin/admin123)"
-    echo "Prometheus: http://localhost:9090"
+    # Мониторинг (Grafana/Prometheus) не устанавливается этим скриптом
     echo
     echo "=== Данные по умолчанию ==="
     echo "Админ‑пользователь: admin"
-    echo "Пароль администратора: admin123"
+    echo "Пароль администратора: ${WORKERNET_ADMIN_PASS}"
     echo "Пользователь БД: workernet"
-    echo "Пароль БД: workernet123"
-    echo "Пароль Redis: redis123"
+    echo "Пароль БД: ${WORKERNET_DB_PASS}"
+    echo "Пароль Redis: ${WORKERNET_REDIS_PASS}"
     echo
     echo "=== Управление сервисами ==="
     echo "Старт: sudo systemctl start workernet-backend workernet-frontend"
@@ -833,8 +847,7 @@ show_final_info() {
     echo "1. Откройте приложение: http://localhost:3000"
     echo "2. Войдите: admin/admin123"
     echo "3. Настройте параметры тенанта"
-    echo "4. Настройте мониторинг в Grafana"
-    echo "5. Настройте SSL‑сертификаты для продакшена"
+    echo "4. Настройте SSL‑сертификаты для продакшена"
     echo
 }
 
