@@ -212,7 +212,8 @@ python manage.py runserver 0.0.0.0:8000
 
 # В новом терминале - запуск frontend
 cd frontend
-npm install
+# Устанавливаем зависимости (предпочтительно без optional для стабильности сетей)
+[ -f package-lock.json ] && npm ci --omit=optional || npm install --omit=optional
 npm start
 ```
 
@@ -276,8 +277,8 @@ python manage.py createsuperuser
 ```bash
 cd frontend
 
-# Установка зависимостей
-npm install
+# Установка зависимостей (используйте lockfile, если он есть)
+[ -f package-lock.json ] && npm ci --omit=optional || npm install --omit=optional
 
 # Запуск в режиме разработки
 npm start
@@ -326,7 +327,7 @@ nvm use 18
 npm -v  # должна вывести версию
 ```
 
-### 3. npm ETIMEDOUT / проблемы с прокси
+### 3. npm ETIMEDOUT / SSL / проблемы с прокси
 ```bash
 # Настроить прокси, если используется
 npm config set proxy "$HTTP_PROXY"   # либо http_proxy
@@ -337,6 +338,11 @@ npm config set fetch-retries 5
 npm config set fetch-retry-factor 2
 npm config set fetch-retry-maxtimeout 300000
 npm config set fetch-timeout 300000
+npm config set maxsockets 3
+
+# Включить строгую проверку SSL и использовать системные корневые сертификаты (если есть)
+npm config set strict-ssl true
+[ -f /etc/ssl/certs/ca-certificates.crt ] && npm config set cafile /etc/ssl/certs/ca-certificates.crt || true
 
 # Поменять реестр и повторить установку
 npm config set registry https://registry.npmjs.org

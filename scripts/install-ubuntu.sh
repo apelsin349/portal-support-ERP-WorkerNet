@@ -580,6 +580,7 @@ setup_nodejs_env() {
     npm config set fetch-retry-factor 2 >/dev/null 2>&1 || true
     npm config set fetch-retry-maxtimeout 300000 >/dev/null 2>&1 || true
     npm config set fetch-timeout 300000 >/dev/null 2>&1 || true
+    npm config set maxsockets 3 >/dev/null 2>&1 || true
 
     # Автоподхват системного корневого хранилища сертификатов (для корпоративных прокси/MITM)
     if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
@@ -611,7 +612,7 @@ setup_nodejs_env() {
     for REG in "${REGISTRIES[@]}"; do
         npm config set registry "$REG" >/dev/null 2>&1 || true
         for ATTEMPT in 1 2 3; do
-            echo "Attempt $ATTEMPT with registry: $REG"
+            echo "Попытка $ATTEMPT с реестром: $REG"
             if $INSTALL_CMD; then
                 INSTALL_OK=true
                 break
