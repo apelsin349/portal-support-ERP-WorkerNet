@@ -115,9 +115,29 @@ install_python() {
 # Function to install Node.js 18
 install_nodejs() {
     print_status "Installing Node.js 18..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt install -y nodejs
-    print_success "Node.js 18 installed successfully"
+    if curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
+       sudo apt install -y nodejs; then
+        print_success "Node.js 18 installed successfully (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+    else
+        print_warning "Failed to install from NodeSource. Falling back to Ubuntu repository..."
+        sudo apt update || true
+        if sudo apt install -y nodejs npm; then
+            print_success "Node.js installed from Ubuntu repo (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+        else
+            print_warning "Ubuntu repo installation failed. Trying NVM as a last resort..."
+            # Install NVM and Node 18 for the current user
+            curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            # shellcheck source=/dev/null
+            source "$HOME/.nvm/nvm.sh" || true
+            if command -v nvm >/dev/null 2>&1; then
+                nvm install 18 && nvm alias default 18 && nvm use 18
+                print_success "Node.js installed via NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+            else
+                print_error "Failed to install Node.js via all methods. Please check network connectivity and try again."
+                exit 1
+            fi
+        fi
+    fi
 }
 
 # Function to install PostgreSQL 15
