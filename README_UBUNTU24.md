@@ -340,7 +340,7 @@ npm config set fetch-timeout 300000
 
 # Поменять реестр и повторить установку
 npm config set registry https://registry.npmjs.org
-cd frontend && ( [ -f package-lock.json ] && npm ci --no-optional || npm install --no-optional )
+cd frontend && ( [ -f package-lock.json ] && npm ci --omit=optional || npm install --omit=optional )
 ```
 
 ### 4. Предупреждение APT: "Missing Signed-By ... for http://ru.archive.ubuntu.com/ubuntu"

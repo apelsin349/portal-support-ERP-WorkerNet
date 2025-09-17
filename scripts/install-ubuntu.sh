@@ -13,6 +13,14 @@ REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP
 REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
 REPO_BRANCH="${WORKERNET_BRANCH:-main}"
 
+# NPM registry and proxy configuration (tunable for restricted networks)
+NPM_REGISTRY_DEFAULT="https://registry.npmmirror.com"
+NPM_REGISTRY="${NPM_REGISTRY:-$NPM_REGISTRY_DEFAULT}"
+NPM_FETCH_TIMEOUT_MS="${NPM_FETCH_TIMEOUT_MS:-120000}"
+NPM_FETCH_RETRY_MAXTIMEOUT_MS="${NPM_FETCH_RETRY_MAXTIMEOUT_MS:-120000}"
+NPM_FETCH_RETRIES="${NPM_FETCH_RETRIES:-5}"
+NPM_STRICT_SSL="${NPM_STRICT_SSL:-true}"
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -587,8 +595,8 @@ setup_nodejs_env() {
         npm config set proxy "${HTTP_PROXY:-${http_proxy}}" >/dev/null 2>&1 || true
     fi
 
-    INSTALL_CMD="npm install --no-optional"
-    [ -f package-lock.json ] && INSTALL_CMD="npm ci --no-optional"
+    INSTALL_CMD="npm install --omit=optional"
+    [ -f package-lock.json ] && INSTALL_CMD="npm ci --omit=optional"
 
     # Проверка кэша; если повреждён — очищаем принудительно
     npm cache verify >/dev/null 2>&1 || npm cache clean --force >/dev/null 2>&1 || true
