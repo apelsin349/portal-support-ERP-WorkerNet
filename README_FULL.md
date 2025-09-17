@@ -5,8 +5,14 @@
 ### Автоматическая установка на Ubuntu 24.04 LTS
 
 ```bash
-# Скачать и запустить скрипт установки
-curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh | bash
+# Важно: НЕ запускайте под root. Используйте обычного пользователя с sudo.
+# Если вы сейчас под root, создайте пользователя и переключитесь на него:
+# adduser workernet && usermod -aG sudo workernet && su - workernet
+
+# Скачать и запустить скрипт установки (поправим URL репозитория внутри скрипта)
+curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh \
+| sed 's|https://github.com/your-org/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' \
+| bash
 ```
 
 ### Запуск через Docker (рекомендуется)
@@ -55,6 +61,9 @@ wget https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/m
 chmod +x install-ubuntu.sh
 
 # Запустить установку
+# Важно: скрипт не должен выполняться под root.
+# Если нужно, замените URL репозитория внутри скрипта на актуальный и запустите:
+sed -i 's|https://github.com/your-org/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' install-ubuntu.sh
 ./install-ubuntu.sh
 ```
 

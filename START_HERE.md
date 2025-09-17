@@ -50,7 +50,14 @@ chmod +x scripts/*.sh
 
 ### Автоматическая установка на Ubuntu 24.04
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-org/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh | bash
+# Важно: НЕ запускайте под root. Используйте обычного пользователя с sudo.
+# Если вы сейчас под root, создайте пользователя и переключитесь на него:
+# adduser workernet && usermod -aG sudo workernet && su - workernet
+
+# Скачать и запустить установщик (с корректной ссылкой на репозиторий)
+curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh \
+| sed 's|https://github.com/your-org/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' \
+| bash
 ```
 
 ### Ручная установка

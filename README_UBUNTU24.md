@@ -1,6 +1,19 @@
 # WorkerNet Portal - Полная инструкция для Ubuntu 24
 
 ## 🚀 Быстрый старт на Ubuntu 24.04 LTS
+### Авто-установка (не под root)
+```bash
+# Если вы сейчас под root, создайте пользователя с sudo и войдите под ним:
+# adduser workernet
+# usermod -aG sudo workernet
+# su - workernet
+
+# Запустите установку. Скрипт откажется работать под root, это нормально.
+# Также заменим URL репозитория внутри скрипта на актуальный:
+curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh \
+| sed 's|https://github.com/your-org/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' \
+| bash
+```
 
 ### Системные требования
 - Ubuntu 24.04 LTS (или новее)
