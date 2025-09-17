@@ -51,7 +51,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'app.core',
     'app.api',
-    'app.models',
+    'app.models.apps.ModelsConfig',
     'app.services',
     'app.utils',
 ]
