@@ -58,6 +58,7 @@ def _app_exists(dotted: str) -> bool:
         return False
 
 _LOCAL_APP_CANDIDATES = [
+    'app.apps.AppConfig',
     'app.core',
     'app.api',
     'app.models.apps.ModelsConfig',
