@@ -506,25 +506,31 @@ configure_redis() {
 create_project_directory() {
     print_status "Создаём каталог проекта..."
     
-    # If already inside the repo, use it
-    if git rev-parse --show-toplevel >/dev/null 2>&1; then
-        PROJECT_DIR="$(git rev-parse --show-toplevel)"
-        export WORKERNET_ROOT="$PROJECT_DIR"
-        cd "$PROJECT_DIR"
-        print_success "Обнаружен существующий репозиторий: $PROJECT_DIR"
+    # Если WORKERNET_ROOT уже установлен (например, early_update_repository), используем его
+    if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "$WORKERNET_ROOT" ]; then
+        print_success "Используем уже установленный корень проекта: $WORKERNET_ROOT"
+        cd "$WORKERNET_ROOT"
         return 0
     fi
 
+    # Создаём временный каталог для клонирования (будет перезаписан в clone_repository)
     PROJECT_DIR="$HOME/workernet-portal"
     mkdir -p "$PROJECT_DIR"
     cd "$PROJECT_DIR"
     
-    print_success "Каталог проекта создан: $PROJECT_DIR"
+    print_success "Временный каталог проекта создан: $PROJECT_DIR"
 }
 
 # Клонирование/обновление репозитория
 clone_repository() {
     print_status "Клонируем/обновляем репозиторий..."
+
+    # Если WORKERNET_ROOT уже установлен (например, early_update_repository), используем его
+    if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "$WORKERNET_ROOT" ]; then
+        print_success "Используем уже установленный корень проекта: $WORKERNET_ROOT"
+        cd "$WORKERNET_ROOT"
+        return 0
+    fi
 
     # If already at repo root, skip clone and just set WORKERNET_ROOT
     if [ -d .git ] && [ -d backend ] && [ -f scripts/install-ubuntu.sh ]; then
