@@ -1,5 +1,6 @@
 """
-API views for WorkerNet Portal.
+API-представления (views) портала WorkerNet.
+Содержит ViewSet'ы для тикетов, базы знаний, пользователей и арендаторов.
 """
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -26,7 +27,7 @@ from .serializers import (
 
 
 class TicketViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing tickets."""
+    """Управление тикетами службы поддержки."""
     
     serializer_class = TicketSerializer
     permission_classes = [IsAuthenticated]
@@ -37,12 +38,12 @@ class TicketViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     
     def get_queryset(self):
-        """Filter tickets by tenant."""
+        """Фильтрация тикетов по текущему арендатору пользователя."""
         return Ticket.objects.filter(tenant=self.request.user.tenant)
     
     @action(detail=True, methods=['post'])
     def add_comment(self, request, pk=None):
-        """Add a comment to a ticket."""
+        """Добавить комментарий к тикету."""
         ticket = self.get_object()
         serializer = TicketCommentSerializer(data=request.data)
         if serializer.is_valid():
@@ -52,7 +53,7 @@ class TicketViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def add_attachment(self, request, pk=None):
-        """Add an attachment to a ticket."""
+        """Добавить вложение к тикету."""
         ticket = self.get_object()
         serializer = TicketAttachmentSerializer(data=request.data)
         if serializer.is_valid():
@@ -62,7 +63,7 @@ class TicketViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def assign(self, request, pk=None):
-        """Assign ticket to a user."""
+        """Назначить тикет пользователю."""
         ticket = self.get_object()
         user_id = request.data.get('user_id')
         if user_id:
@@ -77,7 +78,7 @@ class TicketViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def close(self, request, pk=None):
-        """Close a ticket."""
+        """Закрыть тикет."""
         ticket = self.get_object()
         ticket.status = 'closed'
         ticket.save()
@@ -85,7 +86,7 @@ class TicketViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def reopen(self, request, pk=None):
-        """Reopen a ticket."""
+        """Переоткрыть тикет."""
         ticket = self.get_object()
         ticket.status = 'open'
         ticket.save()
@@ -93,7 +94,7 @@ class TicketViewSet(viewsets.ModelViewSet):
 
 
 class KnowledgeArticleViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing knowledge articles."""
+    """Управление статьями базы знаний."""
     
     serializer_class = KnowledgeArticleSerializer
     permission_classes = [IsAuthenticated]
@@ -104,7 +105,7 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
     ordering = ['-published_at', '-created_at']
     
     def get_queryset(self):
-        """Filter articles by tenant and status."""
+        """Фильтрация статей по арендатору и статусу публикации."""
         queryset = KnowledgeArticle.objects.filter(tenant=self.request.user.tenant)
         if self.action == 'list':
             # Only show published articles in list view
@@ -113,7 +114,7 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def rate(self, request, pk=None):
-        """Rate a knowledge article."""
+        """Оценить статью базы знаний."""
         article = self.get_object()
         rating = request.data.get('rating')
         comment = request.data.get('comment', '')
@@ -143,7 +144,7 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def view(self, request, pk=None):
-        """Track article view."""
+        """Отметить просмотр статьи."""
         article = self.get_object()
         
         # Create view record
@@ -163,7 +164,7 @@ class KnowledgeArticleViewSet(viewsets.ModelViewSet):
 
 
 class KnowledgeCategoryViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing knowledge categories."""
+    """Управление категориями базы знаний."""
     
     serializer_class = KnowledgeCategorySerializer
     permission_classes = [IsAuthenticated]
@@ -174,12 +175,12 @@ class KnowledgeCategoryViewSet(viewsets.ModelViewSet):
     ordering = ['order', 'name']
     
     def get_queryset(self):
-        """Filter categories by tenant."""
+        """Фильтрация категорий по арендатору."""
         return KnowledgeCategory.objects.filter(tenant=self.request.user.tenant)
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing users."""
+    """Управление пользователями арендатора."""
     
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -190,18 +191,18 @@ class UserViewSet(viewsets.ModelViewSet):
     ordering = ['username']
     
     def get_queryset(self):
-        """Filter users by tenant."""
+        """Фильтрация пользователей по арендатору."""
         return User.objects.filter(tenant=self.request.user.tenant)
     
     @action(detail=False, methods=['get'])
     def me(self, request):
-        """Get current user profile."""
+        """Получить профиль текущего пользователя."""
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
     
     @action(detail=False, methods=['put'])
     def update_me(self, request):
-        """Update current user profile."""
+        """Обновить профиль текущего пользователя."""
         serializer = self.get_serializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -210,7 +211,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class TenantViewSet(viewsets.ModelViewSet):
-    """ViewSet for managing tenants."""
+    """Управление арендаторами (тенантами)."""
     
     serializer_class = TenantSerializer
     permission_classes = [IsAuthenticated]
@@ -221,12 +222,12 @@ class TenantViewSet(viewsets.ModelViewSet):
     ordering = ['name']
     
     def get_queryset(self):
-        """Filter tenants by user's tenant."""
+        """Ограничить список до арендатора текущего пользователя."""
         return Tenant.objects.filter(id=self.request.user.tenant.id)
     
     @action(detail=True, methods=['get'])
     def configuration(self, request, pk=None):
-        """Get tenant configuration."""
+        """Получить конфигурацию арендатора (настройки)."""
         tenant = self.get_object()
         config = tenant.configuration
         return Response({
@@ -264,10 +265,10 @@ class TenantViewSet(viewsets.ModelViewSet):
 
 
 class HealthView(viewsets.ViewSet):
-    """Health check view."""
+    """Проверка состояния сервисов (health check)."""
     
     def list(self, request):
-        """Return system health status."""
+        """Вернуть сводку состояния сервисов системы."""
         from django.db import connection
         from django.core.cache import cache
         import redis

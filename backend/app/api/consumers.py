@@ -1,5 +1,6 @@
 """
-WebSocket consumers for WorkerNet Portal.
+WebSocket-консюмеры для портала WorkerNet.
+Обрабатывают уведомления в реальном времени, обновления тикетов и чат.
 """
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -12,14 +13,14 @@ User = get_user_model()
 
 
 class TicketConsumer(AsyncWebsocketConsumer):
-    """WebSocket consumer for ticket updates."""
+    """Консюмер WebSocket для обновлений по тикетам."""
     
     async def connect(self):
-        """Connect to ticket WebSocket."""
+        """Подключение к каналу обновлений конкретного тикета."""
         self.ticket_id = self.scope['url_route']['kwargs']['ticket_id']
         self.ticket_group_name = f'ticket_{self.ticket_id}'
         
-        # Join ticket group
+        # Подписка на группу тикета
         await self.channel_layer.group_add(
             self.ticket_group_name,
             self.channel_name
@@ -28,15 +29,15 @@ class TicketConsumer(AsyncWebsocketConsumer):
         await self.accept()
     
     async def disconnect(self, close_code):
-        """Disconnect from ticket WebSocket."""
-        # Leave ticket group
+        """Отключение от канала обновлений тикета."""
+        # Отписка от группы тикета
         await self.channel_layer.group_discard(
             self.ticket_group_name,
             self.channel_name
         )
     
     async def receive(self, text_data):
-        """Receive message from WebSocket."""
+        """Приём сообщения от клиента WebSocket."""
         try:
             text_data_json = json.loads(text_data)
             message_type = text_data_json.get('type')
@@ -54,13 +55,13 @@ class TicketConsumer(AsyncWebsocketConsumer):
             }))
     
     async def handle_comment(self, data):
-        """Handle new comment."""
+        """Обработка добавления нового комментария."""
         comment_data = data.get('comment', {})
         
-        # Save comment to database
+        # Сохранить комментарий в БД
         comment = await self.save_comment(comment_data)
         
-        # Send comment to group
+        # Отправить комментарий всем подписчикам группы тикета
         await self.channel_layer.group_send(
             self.ticket_group_name,
             {
@@ -76,13 +77,13 @@ class TicketConsumer(AsyncWebsocketConsumer):
         )
     
     async def handle_status_update(self, data):
-        """Handle status update."""
+        """Обработка изменения статуса тикета."""
         status = data.get('status')
         
-        # Update ticket status
+        # Обновить статус тикета
         await self.update_ticket_status(status)
         
-        # Send status update to group
+        # Разослать обновление статуса подписчикам
         await self.channel_layer.group_send(
             self.ticket_group_name,
             {
@@ -92,13 +93,13 @@ class TicketConsumer(AsyncWebsocketConsumer):
         )
     
     async def handle_assignment(self, data):
-        """Handle ticket assignment."""
+        """Обработка назначения ответственного по тикету."""
         user_id = data.get('user_id')
         
-        # Update ticket assignment
+        # Обновить назначение
         await self.update_ticket_assignment(user_id)
         
-        # Send assignment update to group
+        # Разослать обновление назначения подписчикам
         await self.channel_layer.group_send(
             self.ticket_group_name,
             {
@@ -108,21 +109,21 @@ class TicketConsumer(AsyncWebsocketConsumer):
         )
     
     async def comment_added(self, event):
-        """Send comment to WebSocket."""
+        """Отправить событие о новом комментарии клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'comment_added',
             'comment': event['comment']
         }))
     
     async def status_updated(self, event):
-        """Send status update to WebSocket."""
+        """Отправить событие об обновлении статуса клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'status_updated',
             'status': event['status']
         }))
     
     async def assignment_updated(self, event):
-        """Send assignment update to WebSocket."""
+        """Отправить событие об изменении назначения клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'assignment_updated',
             'assigned_to': event['assigned_to']
@@ -130,7 +131,7 @@ class TicketConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def save_comment(self, comment_data):
-        """Save comment to database."""
+        """Сохранить комментарий в базе данных."""
         from app.models.ticket import Ticket, TicketComment
         
         ticket = Ticket.objects.get(ticket_id=self.ticket_id)
@@ -144,7 +145,7 @@ class TicketConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def update_ticket_status(self, status):
-        """Update ticket status."""
+        """Обновить статус тикета."""
         from app.models.ticket import Ticket
         
         ticket = Ticket.objects.get(ticket_id=self.ticket_id)
@@ -153,7 +154,7 @@ class TicketConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def update_ticket_assignment(self, user_id):
-        """Update ticket assignment."""
+        """Обновить назначение ответственного по тикету."""
         from app.models.ticket import Ticket
         
         ticket = Ticket.objects.get(ticket_id=self.ticket_id)
@@ -166,10 +167,10 @@ class TicketConsumer(AsyncWebsocketConsumer):
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
-    """WebSocket consumer for notifications."""
+    """Консюмер WebSocket для пользовательских уведомлений."""
     
     async def connect(self):
-        """Connect to notification WebSocket."""
+        """Подключение к личному каналу уведомлений пользователя."""
         if self.scope['user'] == AnonymousUser():
             await self.close()
             return
@@ -177,7 +178,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         self.user_id = self.scope['user'].id
         self.notification_group_name = f'notifications_{self.user_id}'
         
-        # Join notification group
+        # Подписка на группу уведомлений пользователя
         await self.channel_layer.group_add(
             self.notification_group_name,
             self.channel_name
@@ -186,15 +187,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.accept()
     
     async def disconnect(self, close_code):
-        """Disconnect from notification WebSocket."""
-        # Leave notification group
+        """Отключение от канала уведомлений."""
+        # Отписка от группы уведомлений
         await self.channel_layer.group_discard(
             self.notification_group_name,
             self.channel_name
         )
     
     async def receive(self, text_data):
-        """Receive message from WebSocket."""
+        """Приём сообщения от клиента WebSocket."""
         try:
             text_data_json = json.loads(text_data)
             message_type = text_data_json.get('type')
@@ -208,7 +209,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             }))
     
     async def handle_mark_read(self, data):
-        """Handle mark notification as read."""
+        """Отметить уведомление как прочитанное."""
         notification_id = data.get('notification_id')
         
         # Mark notification as read
@@ -221,14 +222,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         }))
     
     async def notification_created(self, event):
-        """Send notification to WebSocket."""
+        """Отправить событие о создании уведомления клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'notification_created',
             'notification': event['notification']
         }))
     
     async def notification_updated(self, event):
-        """Send notification update to WebSocket."""
+        """Отправить событие об обновлении уведомления клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'notification_updated',
             'notification': event['notification']
@@ -236,7 +237,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def mark_notification_read(self, notification_id):
-        """Mark notification as read."""
+        """Пометить уведомление как прочитанное."""
         from app.models.notification import Notification
         
         try:
@@ -248,14 +249,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    """WebSocket consumer for chat support."""
+    """Консюмер WebSocket для чата службы поддержки."""
     
     async def connect(self):
-        """Connect to chat WebSocket."""
+        """Подключение к комнате чата."""
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f'chat_{self.room_name}'
         
-        # Join room group
+        # Подписка на группу комнаты чата
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -264,15 +265,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
     
     async def disconnect(self, close_code):
-        """Disconnect from chat WebSocket."""
-        # Leave room group
+        """Отключение от комнаты чата."""
+        # Отписка от группы комнаты
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
     
     async def receive(self, text_data):
-        """Receive message from WebSocket."""
+        """Приём сообщения от клиента WebSocket."""
         try:
             text_data_json = json.loads(text_data)
             message_type = text_data_json.get('type')
@@ -288,13 +289,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
     
     async def handle_chat_message(self, data):
-        """Handle chat message."""
+        """Обработка отправки сообщения чата."""
         message_data = data.get('message', {})
         
-        # Save message to database
+        # Сохранить сообщение в БД
         message = await self.save_chat_message(message_data)
         
-        # Send message to room group
+        # Разослать сообщение подписчикам комнаты
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -310,11 +311,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
     
     async def handle_typing(self, data):
-        """Handle typing indicator."""
+        """Обработка индикатора набора текста."""
         is_typing = data.get('is_typing', False)
         user = self.scope['user']
         
-        # Send typing indicator to room group
+        # Отправить индикатор набора в группу комнаты
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -325,14 +326,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
     
     async def chat_message(self, event):
-        """Send chat message to WebSocket."""
+        """Отправить сообщение чата клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
             'message': event['message']
         }))
     
     async def typing(self, event):
-        """Send typing indicator to WebSocket."""
+        """Отправить индикатор набора клиенту."""
         await self.send(text_data=json.dumps({
             'type': 'typing',
             'user': event['user'],
@@ -341,7 +342,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def save_chat_message(self, message_data):
-        """Save chat message to database."""
+        """Сохранить сообщение чата в базе данных."""
         from app.models.chat import ChatMessage
         
         message = ChatMessage.objects.create(

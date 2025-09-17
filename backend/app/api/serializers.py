@@ -1,5 +1,6 @@
 """
-API serializers for WorkerNet Portal.
+Сериализаторы API для портала WorkerNet.
+Определяют отображение моделей в формате JSON и валидацию входящих данных.
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
@@ -13,7 +14,7 @@ User = get_user_model()
 
 
 class TagSerializer(serializers.ModelSerializer):
-    """Serializer for Tag model."""
+    """Сериализатор для модели тега."""
     
     class Meta:
         model = Tag
@@ -21,7 +22,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer for User model."""
+    """Сериализатор для модели пользователя."""
     
     class Meta:
         model = User
@@ -34,7 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class TenantSerializer(serializers.ModelSerializer):
-    """Serializer for Tenant model."""
+    """Сериализатор для модели арендатора (тенанта)."""
     
     class Meta:
         model = Tenant
@@ -47,7 +48,7 @@ class TenantSerializer(serializers.ModelSerializer):
 
 
 class TicketCommentSerializer(serializers.ModelSerializer):
-    """Serializer for TicketComment model."""
+    """Сериализатор для комментария к тикету."""
     
     author = UserSerializer(read_only=True)
     
@@ -61,7 +62,7 @@ class TicketCommentSerializer(serializers.ModelSerializer):
 
 
 class TicketAttachmentSerializer(serializers.ModelSerializer):
-    """Serializer for TicketAttachment model."""
+    """Сериализатор для вложения тикета."""
     
     uploaded_by = UserSerializer(read_only=True)
     
@@ -75,7 +76,7 @@ class TicketAttachmentSerializer(serializers.ModelSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    """Serializer for Ticket model."""
+    """Сериализатор для модели тикета."""
     
     created_by = UserSerializer(read_only=True)
     assigned_to = UserSerializer(read_only=True)
@@ -107,7 +108,7 @@ class TicketSerializer(serializers.ModelSerializer):
         ]
     
     def create(self, validated_data):
-        """Create a new ticket."""
+        """Создать новый тикет."""
         # Remove write-only fields
         assigned_to_id = validated_data.pop('assigned_to_id', None)
         tag_ids = validated_data.pop('tag_ids', [])
@@ -136,7 +137,7 @@ class TicketSerializer(serializers.ModelSerializer):
         return ticket
     
     def update(self, instance, validated_data):
-        """Update a ticket."""
+        """Обновить существующий тикет."""
         # Remove write-only fields
         assigned_to_id = validated_data.pop('assigned_to_id', None)
         tag_ids = validated_data.pop('tag_ids', None)
@@ -165,7 +166,7 @@ class TicketSerializer(serializers.ModelSerializer):
 
 
 class KnowledgeCategorySerializer(serializers.ModelSerializer):
-    """Serializer for KnowledgeCategory model."""
+    """Сериализатор для категории базы знаний."""
     
     children = serializers.SerializerMethodField()
     articles_count = serializers.SerializerMethodField()
@@ -180,17 +181,17 @@ class KnowledgeCategorySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'articles_count']
     
     def get_children(self, obj):
-        """Get child categories."""
+        """Получить дочерние категории."""
         children = obj.children.filter(is_active=True)
         return self.__class__(children, many=True, context=self.context).data
     
     def get_articles_count(self, obj):
-        """Get articles count for this category."""
+        """Получить число опубликованных статей в категории."""
         return obj.articles.filter(status='published').count()
 
 
 class KnowledgeArticleSerializer(serializers.ModelSerializer):
-    """Serializer for KnowledgeArticle model."""
+    """Сериализатор для модели статьи базы знаний."""
     
     author = UserSerializer(read_only=True)
     category = KnowledgeCategorySerializer(read_only=True)
@@ -220,7 +221,7 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
         ]
     
     def create(self, validated_data):
-        """Create a new knowledge article."""
+        """Создать новую статью базы знаний."""
         # Remove write-only fields
         category_id = validated_data.pop('category_id')
         tag_ids = validated_data.pop('tag_ids', [])
@@ -247,7 +248,7 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
         return article
     
     def update(self, instance, validated_data):
-        """Update a knowledge article."""
+        """Обновить существующую статью базы знаний."""
         # Remove write-only fields
         category_id = validated_data.pop('category_id', None)
         tag_ids = validated_data.pop('tag_ids', None)
@@ -272,7 +273,7 @@ class KnowledgeArticleSerializer(serializers.ModelSerializer):
 
 
 class KnowledgeArticleRatingSerializer(serializers.ModelSerializer):
-    """Serializer for KnowledgeArticleRating model."""
+    """Сериализатор для оценки статьи базы знаний."""
     
     user = UserSerializer(read_only=True)
     
@@ -286,7 +287,7 @@ class KnowledgeArticleRatingSerializer(serializers.ModelSerializer):
 
 
 class SLASerializer(serializers.ModelSerializer):
-    """Serializer for SLA model."""
+    """Сериализатор для модели SLA."""
     
     class Meta:
         model = SLA
@@ -299,7 +300,7 @@ class SLASerializer(serializers.ModelSerializer):
 
 
 class TicketSLASerializer(serializers.ModelSerializer):
-    """Serializer for TicketSLA model."""
+    """Сериализатор для отслеживания SLA конкретного тикета."""
     
     sla = SLASerializer(read_only=True)
     

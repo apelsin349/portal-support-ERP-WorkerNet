@@ -1,5 +1,5 @@
 """
-Ticket models for support system.
+Модели тикетов для системы службы поддержки.
 """
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -10,50 +10,50 @@ User = get_user_model()
 
 
 class Ticket(models.Model):
-    """Support ticket model."""
+    """Модель тикета службы поддержки."""
     
     PRIORITY_CHOICES = [
-        ('low', _('Low')),
-        ('medium', _('Medium')),
-        ('high', _('High')),
-        ('urgent', _('Urgent')),
-        ('critical', _('Critical')),
+        ('low', _('Низкий')),
+        ('medium', _('Средний')),
+        ('high', _('Высокий')),
+        ('urgent', _('Срочный')),
+        ('critical', _('Критический')),
     ]
     
     STATUS_CHOICES = [
-        ('open', _('Open')),
-        ('in_progress', _('In Progress')),
-        ('pending', _('Pending')),
-        ('resolved', _('Resolved')),
-        ('closed', _('Closed')),
-        ('cancelled', _('Cancelled')),
+        ('open', _('Открыт')),
+        ('in_progress', _('В работе')),
+        ('pending', _('Ожидание')),
+        ('resolved', _('Решён')),
+        ('closed', _('Закрыт')),
+        ('cancelled', _('Отменён')),
     ]
     
     CATEGORY_CHOICES = [
-        ('technical', _('Technical')),
-        ('billing', _('Billing')),
-        ('general', _('General')),
-        ('bug_report', _('Bug Report')),
-        ('feature_request', _('Feature Request')),
-        ('other', _('Other')),
+        ('technical', _('Техническая')),
+        ('billing', _('Биллинг')),
+        ('general', _('Общая')),
+        ('bug_report', _('Баг')),
+        ('feature_request', _('Запрос фичи')),
+        ('other', _('Другое')),
     ]
     
-    # Basic information
-    ticket_id = models.CharField(max_length=20, unique=True, verbose_name=_("Ticket ID"))
-    title = models.CharField(max_length=255, verbose_name=_("Title"))
-    description = models.TextField(verbose_name=_("Description"))
+    # Базовая информация
+    ticket_id = models.CharField(max_length=20, unique=True, verbose_name=_("ID тикета"))
+    title = models.CharField(max_length=255, verbose_name=_("Заголовок"))
+    description = models.TextField(verbose_name=_("Описание"))
     
-    # Classification
-    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium', verbose_name=_("Priority"))
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', verbose_name=_("Status"))
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='general', verbose_name=_("Category"))
+    # Классификация
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium', verbose_name=_("Приоритет"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', verbose_name=_("Статус"))
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='general', verbose_name=_("Категория"))
     
-    # Assignment
+    # Назначение
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='created_tickets',
-        verbose_name=_("Created By")
+        verbose_name=_("Автор")
     )
     assigned_to = models.ForeignKey(
         User,
@@ -61,35 +61,35 @@ class Ticket(models.Model):
         null=True,
         blank=True,
         related_name='assigned_tickets',
-        verbose_name=_("Assigned To")
+        verbose_name=_("Назначен")
     )
     
-    # Tenant
+    # Арендатор
     tenant = models.ForeignKey(
         'Tenant',
         on_delete=models.CASCADE,
         related_name='tickets',
-        verbose_name=_("Tenant")
+        verbose_name=_("Арендатор")
     )
     
     # SLA
-    sla_hours = models.IntegerField(default=24, verbose_name=_("SLA Hours"))
-    due_date = models.DateTimeField(null=True, blank=True, verbose_name=_("Due Date"))
-    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Resolved At"))
+    sla_hours = models.IntegerField(default=24, verbose_name=_("SLA (часы)"))
+    due_date = models.DateTimeField(null=True, blank=True, verbose_name=_("Крайний срок"))
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Время решения"))
     
-    # Metadata
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
+    # Метаданные
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
-    # Custom fields
-    custom_fields = models.JSONField(default=dict, verbose_name=_("Custom Fields"))
+    # Пользовательские поля
+    custom_fields = models.JSONField(default=dict, verbose_name=_("Пользовательские поля"))
     
-    # Tags
-    tags = models.ManyToManyField('Tag', blank=True, verbose_name=_("Tags"))
+    # Теги
+    tags = models.ManyToManyField('Tag', blank=True, verbose_name=_("Теги"))
     
     class Meta:
-        verbose_name = _("Ticket")
-        verbose_name_plural = _("Tickets")
+        verbose_name = _("Тикет")
+        verbose_name_plural = _("Тикеты")
         db_table = 'tickets'
         ordering = ['-created_at']
     
@@ -102,34 +102,34 @@ class Ticket(models.Model):
         super().save(*args, **kwargs)
     
     def generate_ticket_id(self):
-        """Generate unique ticket ID."""
+        """Сгенерировать уникальный ID тикета."""
         import uuid
         return f"TK-{uuid.uuid4().hex[:8].upper()}"
 
 
 class TicketComment(models.Model):
-    """Ticket comment model."""
+    """Модель комментария к тикету."""
     
     ticket = models.ForeignKey(
         Ticket,
         on_delete=models.CASCADE,
         related_name='comments',
-        verbose_name=_("Ticket")
+        verbose_name=_("Тикет")
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='ticket_comments',
-        verbose_name=_("Author")
+        verbose_name=_("Автор")
     )
-    content = models.TextField(verbose_name=_("Content"))
-    is_internal = models.BooleanField(default=False, verbose_name=_("Is Internal"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
+    content = models.TextField(verbose_name=_("Содержимое"))
+    is_internal = models.BooleanField(default=False, verbose_name=_("Внутренний"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
     class Meta:
-        verbose_name = _("Ticket Comment")
-        verbose_name_plural = _("Ticket Comments")
+        verbose_name = _("Комментарий к тикету")
+        verbose_name_plural = _("Комментарии к тикету")
         db_table = 'ticket_comments'
         ordering = ['created_at']
     
@@ -138,29 +138,29 @@ class TicketComment(models.Model):
 
 
 class TicketAttachment(models.Model):
-    """Ticket attachment model."""
+    """Модель вложения тикета."""
     
     ticket = models.ForeignKey(
         Ticket,
         on_delete=models.CASCADE,
         related_name='attachments',
-        verbose_name=_("Ticket")
+        verbose_name=_("Тикет")
     )
     uploaded_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='ticket_attachments',
-        verbose_name=_("Uploaded By")
+        verbose_name=_("Загрузил")
     )
-    file = models.FileField(upload_to='tickets/attachments/', verbose_name=_("File"))
-    filename = models.CharField(max_length=255, verbose_name=_("Filename"))
-    file_size = models.BigIntegerField(verbose_name=_("File Size"))
-    mime_type = models.CharField(max_length=100, verbose_name=_("MIME Type"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
+    file = models.FileField(upload_to='tickets/attachments/', verbose_name=_("Файл"))
+    filename = models.CharField(max_length=255, verbose_name=_("Имя файла"))
+    file_size = models.BigIntegerField(verbose_name=_("Размер файла"))
+    mime_type = models.CharField(max_length=100, verbose_name=_("MIME-тип"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
     
     class Meta:
-        verbose_name = _("Ticket Attachment")
-        verbose_name_plural = _("Ticket Attachments")
+        verbose_name = _("Вложение тикета")
+        verbose_name_plural = _("Вложения тикетов")
         db_table = 'ticket_attachments'
     
     def __str__(self):
@@ -168,16 +168,16 @@ class TicketAttachment(models.Model):
 
 
 class Tag(models.Model):
-    """Tag model for tickets."""
+    """Модель тега для тикетов."""
     
-    name = models.CharField(max_length=50, unique=True, verbose_name=_("Name"))
-    color = models.CharField(max_length=7, default='#1976d2', verbose_name=_("Color"))
-    description = models.TextField(blank=True, verbose_name=_("Description"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
+    name = models.CharField(max_length=50, unique=True, verbose_name=_("Название"))
+    color = models.CharField(max_length=7, default='#1976d2', verbose_name=_("Цвет"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
     
     class Meta:
-        verbose_name = _("Tag")
-        verbose_name_plural = _("Tags")
+        verbose_name = _("Тег")
+        verbose_name_plural = _("Теги")
         db_table = 'tags'
         ordering = ['name']
     
@@ -186,37 +186,37 @@ class Tag(models.Model):
 
 
 class SLA(models.Model):
-    """Service Level Agreement model."""
+    """Модель SLA (уровни сервиса)."""
     
-    name = models.CharField(max_length=100, verbose_name=_("Name"))
-    description = models.TextField(blank=True, verbose_name=_("Description"))
+    name = models.CharField(max_length=100, verbose_name=_("Название"))
+    description = models.TextField(blank=True, verbose_name=_("Описание"))
     
-    # Response time (in hours)
-    response_time = models.IntegerField(verbose_name=_("Response Time (hours)"))
+    # Время ответа (в часах)
+    response_time = models.IntegerField(verbose_name=_("Время ответа (часы)"))
     
-    # Resolution time (in hours)
-    resolution_time = models.IntegerField(verbose_name=_("Resolution Time (hours)"))
+    # Время решения (в часах)
+    resolution_time = models.IntegerField(verbose_name=_("Время решения (часы)"))
     
-    # Priority mapping
-    priority = models.CharField(max_length=20, choices=Ticket.PRIORITY_CHOICES, verbose_name=_("Priority"))
+    # Приоритет
+    priority = models.CharField(max_length=20, choices=Ticket.PRIORITY_CHOICES, verbose_name=_("Приоритет"))
     
-    # Tenant
+    # Арендатор
     tenant = models.ForeignKey(
         'Tenant',
         on_delete=models.CASCADE,
         related_name='slas',
-        verbose_name=_("Tenant")
+        verbose_name=_("Арендатор")
     )
     
-    # Status
-    is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
+    # Статус
+    is_active = models.BooleanField(default=True, verbose_name=_("Активен"))
     
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
     class Meta:
         verbose_name = _("SLA")
-        verbose_name_plural = _("SLAs")
+        verbose_name_plural = _("SLA")
         db_table = 'slas'
         unique_together = ['tenant', 'priority']
     
@@ -225,7 +225,7 @@ class SLA(models.Model):
 
 
 class TicketSLA(models.Model):
-    """Ticket SLA tracking model."""
+    """Модель отслеживания SLA для конкретного тикета."""
     
     ticket = models.OneToOneField(
         Ticket,
@@ -240,20 +240,20 @@ class TicketSLA(models.Model):
         verbose_name=_("SLA")
     )
     
-    # Timestamps
-    first_response_at = models.DateTimeField(null=True, blank=True, verbose_name=_("First Response At"))
-    resolution_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Resolution At"))
+    # Метки времени
+    first_response_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Время первого ответа"))
+    resolution_at = models.DateTimeField(null=True, blank=True, verbose_name=_("Время решения"))
     
-    # Status
-    is_breached = models.BooleanField(default=False, verbose_name=_("Is Breached"))
-    breach_reason = models.TextField(blank=True, verbose_name=_("Breach Reason"))
+    # Статус SLA
+    is_breached = models.BooleanField(default=False, verbose_name=_("SLA нарушен"))
+    breach_reason = models.TextField(blank=True, verbose_name=_("Причина нарушения"))
     
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
     class Meta:
-        verbose_name = _("Ticket SLA")
-        verbose_name_plural = _("Ticket SLAs")
+        verbose_name = _("SLA тикета")
+        verbose_name_plural = _("SLA тикетов")
         db_table = 'ticket_slas'
     
     def __str__(self):

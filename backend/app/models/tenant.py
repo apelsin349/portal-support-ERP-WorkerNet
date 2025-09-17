@@ -1,5 +1,5 @@
 """
-Tenant models for multitenancy support.
+Модели арендатора (мультитенантность) и пользователи.
 """
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -7,29 +7,29 @@ from django.utils.translation import gettext_lazy as _
 
 
 class Tenant(models.Model):
-    """Tenant model for multitenancy."""
+    """Модель арендатора (тенанта) для мультитенантной архитектуры."""
     
-    name = models.CharField(max_length=255, verbose_name=_("Tenant Name"))
-    slug = models.SlugField(unique=True, verbose_name=_("Slug"))
-    domain = models.CharField(max_length=255, unique=True, verbose_name=_("Domain"))
-    is_active = models.BooleanField(default=True, verbose_name=_("Is Active"))
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
+    name = models.CharField(max_length=255, verbose_name=_("Название арендатора"))
+    slug = models.SlugField(unique=True, verbose_name=_("Слаг"))
+    domain = models.CharField(max_length=255, unique=True, verbose_name=_("Домен"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Активен"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создан"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлён"))
     
     # Configuration
-    config = models.JSONField(default=dict, verbose_name=_("Configuration"))
+    config = models.JSONField(default=dict, verbose_name=_("Конфигурация"))
     
     # Branding
-    logo = models.ImageField(upload_to='tenants/logos/', null=True, blank=True, verbose_name=_("Logo"))
-    primary_color = models.CharField(max_length=7, default='#1976d2', verbose_name=_("Primary Color"))
-    secondary_color = models.CharField(max_length=7, default='#dc004e', verbose_name=_("Secondary Color"))
+    logo = models.ImageField(upload_to='tenants/logos/', null=True, blank=True, verbose_name=_("Логотип"))
+    primary_color = models.CharField(max_length=7, default='#1976d2', verbose_name=_("Основной цвет"))
+    secondary_color = models.CharField(max_length=7, default='#dc004e', verbose_name=_("Дополнительный цвет"))
     
     # Features
-    features = models.JSONField(default=dict, verbose_name=_("Features"))
+    features = models.JSONField(default=dict, verbose_name=_("Фичи"))
     
     class Meta:
-        verbose_name = _("Tenant")
-        verbose_name_plural = _("Tenants")
+        verbose_name = _("Арендатор")
+        verbose_name_plural = _("Арендаторы")
         db_table = 'tenants'
     
     def __str__(self):
@@ -37,31 +37,31 @@ class Tenant(models.Model):
 
 
 class User(AbstractUser):
-    """Extended User model with tenant support."""
+    """Расширенная модель пользователя с привязкой к арендатору."""
     
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
         related_name='users',
-        verbose_name=_("Tenant")
+        verbose_name=_("Арендатор")
     )
     
-    # Profile
-    avatar = models.ImageField(upload_to='users/avatars/', null=True, blank=True, verbose_name=_("Avatar"))
-    phone = models.CharField(max_length=20, blank=True, verbose_name=_("Phone"))
-    department = models.CharField(max_length=100, blank=True, verbose_name=_("Department"))
-    position = models.CharField(max_length=100, blank=True, verbose_name=_("Position"))
+    # Профиль
+    avatar = models.ImageField(upload_to='users/avatars/', null=True, blank=True, verbose_name=_("Аватар"))
+    phone = models.CharField(max_length=20, blank=True, verbose_name=_("Телефон"))
+    department = models.CharField(max_length=100, blank=True, verbose_name=_("Отдел"))
+    position = models.CharField(max_length=100, blank=True, verbose_name=_("Должность"))
     
-    # Preferences
-    preferences = models.JSONField(default=dict, verbose_name=_("Preferences"))
+    # Предпочтения
+    preferences = models.JSONField(default=dict, verbose_name=_("Предпочтения"))
     
-    # Status
-    is_verified = models.BooleanField(default=False, verbose_name=_("Is Verified"))
-    last_login_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("Last Login IP"))
+    # Статус
+    is_verified = models.BooleanField(default=False, verbose_name=_("Верифицирован"))
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("IP последнего входа"))
     
     class Meta:
-        verbose_name = _("User")
-        verbose_name_plural = _("Users")
+        verbose_name = _("Пользователь")
+        verbose_name_plural = _("Пользователи")
         db_table = 'users'
         unique_together = ['username', 'tenant']
     
@@ -70,55 +70,55 @@ class User(AbstractUser):
 
 
 class TenantConfiguration(models.Model):
-    """Tenant-specific configuration."""
+    """Настройки арендатора."""
     
     tenant = models.OneToOneField(
         Tenant,
         on_delete=models.CASCADE,
         related_name='configuration',
-        verbose_name=_("Tenant")
+        verbose_name=_("Арендатор")
     )
     
-    # General settings
-    timezone = models.CharField(max_length=50, default='UTC', verbose_name=_("Timezone"))
-    language = models.CharField(max_length=10, default='en', verbose_name=_("Language"))
-    date_format = models.CharField(max_length=20, default='%Y-%m-%d', verbose_name=_("Date Format"))
-    time_format = models.CharField(max_length=10, default='24', verbose_name=_("Time Format"))
+    # Общие настройки
+    timezone = models.CharField(max_length=50, default='UTC', verbose_name=_("Часовой пояс"))
+    language = models.CharField(max_length=10, default='en', verbose_name=_("Язык"))
+    date_format = models.CharField(max_length=20, default='%Y-%m-%d', verbose_name=_("Формат даты"))
+    time_format = models.CharField(max_length=10, default='24', verbose_name=_("Формат времени"))
     
-    # Ticket settings
-    auto_assign_tickets = models.BooleanField(default=True, verbose_name=_("Auto Assign Tickets"))
-    ticket_priority_levels = models.JSONField(default=list, verbose_name=_("Ticket Priority Levels"))
-    ticket_categories = models.JSONField(default=list, verbose_name=_("Ticket Categories"))
+    # Настройки тикетов
+    auto_assign_tickets = models.BooleanField(default=True, verbose_name=_("Автоназначение тикетов"))
+    ticket_priority_levels = models.JSONField(default=list, verbose_name=_("Уровни приоритетов"))
+    ticket_categories = models.JSONField(default=list, verbose_name=_("Категории тикетов"))
     
-    # SLA settings
-    default_sla_hours = models.IntegerField(default=24, verbose_name=_("Default SLA Hours"))
-    escalation_rules = models.JSONField(default=dict, verbose_name=_("Escalation Rules"))
+    # Настройки SLA
+    default_sla_hours = models.IntegerField(default=24, verbose_name=_("Базовый SLA (часы)"))
+    escalation_rules = models.JSONField(default=dict, verbose_name=_("Правила эскалации"))
     
-    # Notification settings
-    email_notifications = models.BooleanField(default=True, verbose_name=_("Email Notifications"))
-    sms_notifications = models.BooleanField(default=False, verbose_name=_("SMS Notifications"))
-    push_notifications = models.BooleanField(default=True, verbose_name=_("Push Notifications"))
+    # Уведомления
+    email_notifications = models.BooleanField(default=True, verbose_name=_("Уведомления по email"))
+    sms_notifications = models.BooleanField(default=False, verbose_name=_("Уведомления по SMS"))
+    push_notifications = models.BooleanField(default=True, verbose_name=_("Push-уведомления"))
     
-    # Security settings
-    password_policy = models.JSONField(default=dict, verbose_name=_("Password Policy"))
-    session_timeout = models.IntegerField(default=3600, verbose_name=_("Session Timeout (seconds)"))
-    two_factor_required = models.BooleanField(default=False, verbose_name=_("Two Factor Required"))
+    # Безопасность
+    password_policy = models.JSONField(default=dict, verbose_name=_("Политика паролей"))
+    session_timeout = models.IntegerField(default=3600, verbose_name=_("Таймаут сессии (сек)"))
+    two_factor_required = models.BooleanField(default=False, verbose_name=_("Двухфакторная аутентификация"))
     
-    # Integration settings
-    ldap_enabled = models.BooleanField(default=False, verbose_name=_("LDAP Enabled"))
-    ldap_config = models.JSONField(default=dict, verbose_name=_("LDAP Configuration"))
-    sso_enabled = models.BooleanField(default=False, verbose_name=_("SSO Enabled"))
-    sso_config = models.JSONField(default=dict, verbose_name=_("SSO Configuration"))
+    # Интеграции
+    ldap_enabled = models.BooleanField(default=False, verbose_name=_("LDAP включён"))
+    ldap_config = models.JSONField(default=dict, verbose_name=_("Конфигурация LDAP"))
+    sso_enabled = models.BooleanField(default=False, verbose_name=_("SSO включён"))
+    sso_config = models.JSONField(default=dict, verbose_name=_("Конфигурация SSO"))
     
-    # Custom fields
-    custom_fields = models.JSONField(default=dict, verbose_name=_("Custom Fields"))
+    # Пользовательские поля
+    custom_fields = models.JSONField(default=dict, verbose_name=_("Пользовательские поля"))
     
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
-    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Создано"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
     class Meta:
-        verbose_name = _("Tenant Configuration")
-        verbose_name_plural = _("Tenant Configurations")
+        verbose_name = _("Настройки арендатора")
+        verbose_name_plural = _("Настройки арендаторов")
         db_table = 'tenant_configurations'
     
     def __str__(self):

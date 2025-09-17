@@ -92,6 +92,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+# Пользовательская модель пользователя
+AUTH_USER_MODEL = 'models.User'
+
 # Database
 DATABASES = {
     'default': env.db(),
