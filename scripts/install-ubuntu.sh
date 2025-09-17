@@ -29,6 +29,11 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Additional status helper
+ok() {
+    echo -e "${GREEN}[OK]${NC} $1"
+}
+
 # Simple reachability check (HEAD)
 check_url() {
     curl -sSfI --max-time 5 "$1" >/dev/null 2>&1
