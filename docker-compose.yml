@@ -1,0 +1,282 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: workernet_db
+    environment:
+      POSTGRES_DB: worker_net
+      POSTGRES_USER: workernet
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-workernet123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - workernet_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workernet -d worker_net"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: workernet_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - workernet_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workernet_backend
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/worker_net
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      - REDIS_CACHE_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,backend
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+    volumes:
+      - ./backend:/app
+      - backend_static:/app/staticfiles
+      - backend_media:/app/media
+    ports:
+      - "8000:8000"
+    networks:
+      - workernet_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workernet_celery_worker
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/worker_net
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+    volumes:
+      - ./backend:/app
+      - backend_media:/app/media
+    networks:
+      - workernet_network
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    command: celery -A config worker -l info
+
+  # Celery Beat Scheduler
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workernet_celery_beat
+    environment:
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
+      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/worker_net
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+    volumes:
+      - ./backend:/app
+    networks:
+      - workernet_network
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    command: celery -A config beat -l info
+
+  # Celery Flower (Monitoring)
+  celery_flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: workernet_celery_flower
+    environment:
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+    ports:
+      - "5555:5555"
+    networks:
+      - workernet_network
+    depends_on:
+      - redis
+    restart: unless-stopped
+    command: celery -A config flower --port=5555
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: workernet_frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    networks:
+      - workernet_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    command: npm start
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: workernet_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - backend_static:/var/www/static
+      - backend_media:/var/www/media
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - workernet_network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: workernet_prometheus
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - workernet_network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: workernet_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3001:3000"
+    networks:
+      - workernet_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Elasticsearch (for logging)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    container_name: workernet_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - workernet_network
+    restart: unless-stopped
+
+  # Kibana (for log visualization)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.0
+    container_name: workernet_kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - workernet_network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+  # Logstash (for log processing)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.0
+    container_name: workernet_logstash
+    volumes:
+      - ./config/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    ports:
+      - "5044:5044"
+    networks:
+      - workernet_network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_static:
+  backend_media:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:
+
+networks:
+  workernet_network:
+    driver: bridge
