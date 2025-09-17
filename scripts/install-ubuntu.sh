@@ -5,8 +5,14 @@
 
 set -e
 
-# Ensure stable working directory to avoid "getcwd() failed" issues during long-running APT/NVM steps
-cd "$HOME" || exit 1
+# Ensure stable working directory to avoid "getcwd() failed" issues
+# If launched from inside a cloned repo, pin to repo root; otherwise use $HOME
+if git rev-parse --show-toplevel >/dev/null 2>&1; then
+    export WORKERNET_ROOT="$(git rev-parse --show-toplevel)"
+    cd "$WORKERNET_ROOT" || exit 1
+else
+    cd "$HOME" || exit 1
+fi
 
 # Repository configuration (can be overridden via env)
 REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP-WorkerNet.git}"
@@ -459,6 +465,15 @@ configure_redis() {
 create_project_directory() {
     print_status "Создаём каталог проекта..."
     
+    # If already inside the repo, use it
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        PROJECT_DIR="$(git rev-parse --show-toplevel)"
+        export WORKERNET_ROOT="$PROJECT_DIR"
+        cd "$PROJECT_DIR"
+        print_success "Обнаружен существующий репозиторий: $PROJECT_DIR"
+        return 0
+    fi
+
     PROJECT_DIR="$HOME/workernet-portal"
     mkdir -p "$PROJECT_DIR"
     cd "$PROJECT_DIR"
@@ -469,6 +484,13 @@ create_project_directory() {
 # Клонирование/обновление репозитория
 clone_repository() {
     print_status "Клонируем/обновляем репозиторий..."
+
+    # If already at repo root, skip clone and just set WORKERNET_ROOT
+    if [ -d .git ] && [ -d backend ] && [ -f scripts/install-ubuntu.sh ]; then
+        export WORKERNET_ROOT="$(pwd)"
+        print_success "Используем существующий репозиторий: $WORKERNET_ROOT"
+        return 0
+    fi
 
     # Create directory if missing
     if [ ! -d "portal-support-ERP-WorkerNet" ]; then
@@ -484,6 +506,7 @@ clone_repository() {
     fi
 
     cd portal-support-ERP-WorkerNet
+    export WORKERNET_ROOT="$(pwd)"
 
     # Гарантируем корректный origin (предпочитаем основной URL)
     CURRENT_URL=$(git remote get-url origin 2>/dev/null || echo "")
@@ -579,7 +602,7 @@ setup_environment() {
 setup_python_env() {
     print_status "Настраиваем виртуальное окружение Python..."
     
-    cd backend
+    cd "${WORKERNET_ROOT:-.}/backend"
     "${WORKERNET_PY3:-python3}" -m venv venv
     source venv/bin/activate
     python -m pip install -U pip setuptools wheel
@@ -609,6 +632,9 @@ setup_nodejs_env() {
     GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
     if [ -n "$GIT_ROOT" ] && [ -d "$GIT_ROOT/frontend" ]; then
         CANDIDATES+=("$GIT_ROOT/frontend")
+    fi
+    if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "${WORKERNET_ROOT}/frontend" ]; then
+        CANDIDATES+=("${WORKERNET_ROOT}/frontend")
     fi
 
     FRONTEND_DIR=""
@@ -692,7 +718,7 @@ setup_nodejs_env() {
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
     
-    cd ../backend
+    cd "${WORKERNET_ROOT:-.}/backend"
     source venv/bin/activate
     python manage.py migrate
     python manage.py collectstatic --noinput
@@ -704,7 +730,7 @@ run_migrations() {
 create_superuser() {
     print_status "Создаём суперпользователя..."
     
-    cd backend
+    cd "${WORKERNET_ROOT:-.}/backend"
     source venv/bin/activate
     
     # Create superuser non-interactively
@@ -753,9 +779,9 @@ After=network.target postgresql.service redis.service
 [Service]
 Type=simple
 User=$USER
-WorkingDirectory=$HOME/workernet-portal/portal-support-ERP-WorkerNet/backend
-Environment=PATH=$HOME/workernet-portal/portal-support-ERP-WorkerNet/backend/venv/bin
-ExecStart=$HOME/workernet-portal/portal-support-ERP-WorkerNet/backend/venv/bin/python manage.py runserver 0.0.0.0:8000
+WorkingDirectory=${WORKERNET_ROOT}/backend
+Environment=PATH=${WORKERNET_ROOT}/backend/venv/bin
+ExecStart=${WORKERNET_ROOT}/backend/venv/bin/python manage.py runserver 0.0.0.0:8000
 Restart=always
 
 [Install]
@@ -771,7 +797,7 @@ After=network.target workernet-backend.service
 [Service]
 Type=simple
 User=$USER
-WorkingDirectory=$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend
+WorkingDirectory=${WORKERNET_ROOT}/frontend
 Environment=PATH=/usr/bin:/bin
 ExecStart=/usr/bin/npm start
 Restart=always
@@ -882,7 +908,7 @@ main() {
     clone_repository
     setup_environment
     # Гарантируем наличие каталога логов бэкенда до миграций
-    mkdir -p backend/logs || true
+    mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
     setup_python_env
     setup_nodejs_env
     run_migrations
