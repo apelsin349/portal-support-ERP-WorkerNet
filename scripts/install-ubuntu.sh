@@ -489,6 +489,16 @@ clone_repository() {
     git submodule update --init --recursive || true
 
     print_success "Репозиторий актуален (ветка: $REPO_BRANCH)"
+
+    # Проверяем наличие фронтенда, если он обязателен
+    if [ "${WORKERNET_REQUIRE_FRONTEND:-true}" = "true" ]; then
+        if [ ! -d "frontend" ] || [ ! -f "frontend/package.json" ]; then
+            print_error "Требуемый каталог фронтенда отсутствует: $(pwd)/frontend"
+            echo "Подсказка: убедитесь, что вы клонировали актуальную ветку с каталогом 'frontend'"
+            echo "Либо укажите WORKERNET_REQUIRE_FRONTEND=false для пропуска (не рекомендуется)."
+            exit 1
+        fi
+    fi
 }
 
 # Настройка окружения (.env с автогенерацией безопасных значений)
