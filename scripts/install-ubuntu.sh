@@ -5,6 +5,11 @@
 
 set -e
 
+# Repository configuration (can be overridden via env)
+REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP-WorkerNet.git}"
+REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
+REPO_BRANCH="${WORKERNET_BRANCH:-main}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -414,18 +419,43 @@ create_project_directory() {
 
 # Function to clone repository
 clone_repository() {
-    print_status "Cloning repository..."
-    
-    if [ -d "portal-support-ERP-WorkerNet" ]; then
-        print_warning "Repository already exists. Updating..."
-        cd portal-support-ERP-WorkerNet
-        git pull origin main
-    else
-        git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
-        cd portal-support-ERP-WorkerNet
+    print_status "Cloning/updating repository..."
+
+    # Create directory if missing
+    if [ ! -d "portal-support-ERP-WorkerNet" ]; then
+        if git clone "$REPO_URL" portal-support-ERP-WorkerNet; then
+            :
+        elif [ -n "$REPO_URL_MIRROR" ]; then
+            print_warning "Primary repo unavailable, trying mirror: $REPO_URL_MIRROR"
+            git clone "$REPO_URL_MIRROR" portal-support-ERP-WorkerNet
+        else
+            print_error "Failed to clone repository"
+            exit 1
+        fi
     fi
-    
-    print_success "Repository cloned/updated successfully"
+
+    cd portal-support-ERP-WorkerNet
+
+    # Ensure remote URL is correct (prefer primary, otherwise keep existing)
+    CURRENT_URL=$(git remote get-url origin 2>/dev/null || echo "")
+    if [ -n "$REPO_URL" ] && [ "$CURRENT_URL" != "$REPO_URL" ]; then
+        git remote set-url origin "$REPO_URL" || true
+    fi
+
+    # Fetch and hard-update to requested branch
+    git fetch --all --prune || true
+    # Determine default branch if requested not found
+    if ! git show-ref --verify --quiet "refs/remotes/origin/$REPO_BRANCH"; then
+        REPO_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
+        REPO_BRANCH=${REPO_BRANCH:-main}
+        print_warning "Requested branch not found; using default: $REPO_BRANCH"
+    fi
+
+    git checkout "$REPO_BRANCH" 2>/dev/null || git checkout -B "$REPO_BRANCH"
+    git reset --hard "origin/$REPO_BRANCH" || true
+    git submodule update --init --recursive || true
+
+    print_success "Repository is up-to-date (branch: $REPO_BRANCH)"
 }
 
 # Function to setup environment (.env autogeneration with safe defaults)
