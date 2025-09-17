@@ -110,6 +110,13 @@ sudo apt install -y unzip
 ```bash
 git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
+# Обязательное требование: на сервере должен быть фронтенд
+# Проверим наличие каталога и package.json
+test -f frontend/package.json && echo "OK: frontend найден" || {
+  echo "ОШИБКА: отсутствует frontend/package.json. Фронтенд обязателен на этом сервере.";
+  echo "Если хотите пропустить проверку — экспортируйте WORKERNET_REQUIRE_FRONTEND=false (не рекомендуется).";
+  exit 1;
+}
 ```
 
 ### 2. Создание виртуального окружения Python
@@ -208,6 +215,8 @@ sudo systemctl start postgresql
 # Запуск backend
 cd backend
 source venv/bin/activate
+# Перед миграциями убедитесь, что существует каталог логов
+mkdir -p logs
 python manage.py migrate
 python manage.py collectstatic --noinput
 python manage.py createsuperuser
@@ -217,6 +226,17 @@ python manage.py runserver 0.0.0.0:8000
 cd frontend
 # Устанавливаем зависимости (предпочтительно без optional для стабильности сетей)
 [ -f package-lock.json ] && npm ci --omit=optional || npm install --omit=optional
+# Рекомендуемые npm-настройки для сетей РФ/прокси
+npm config set fetch-retries 5
+npm config set fetch-retry-factor 2
+npm config set fetch-retry-maxtimeout 300000
+npm config set fetch-timeout 300000
+npm config set maxsockets 3
+npm config set registry https://registry.npmjs.org
+# Зеркало (при проблемах с основным реестром)
+npm config set @*/*:registry https://registry.npmmirror.com
+# Прокси при необходимости
+# npm config set proxy "$HTTP_PROXY"; npm config set https-proxy "$HTTPS_PROXY"
 npm start
 ```
 
@@ -371,6 +391,11 @@ docker volume prune
 # Перезапуск всех сервисов
 docker-compose down
 docker-compose up -d --build
+
+# Если команда docker compose отсутствует
+sudo apt update
+sudo apt install -y docker-compose-plugin || sudo apt install -y docker-compose
+command -v docker-compose >/dev/null || sudo bash -c 'ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose || true'
 ```
 
 ### 6. Проблемы с базой данных

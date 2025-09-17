@@ -61,8 +61,6 @@ _LOCAL_APP_CANDIDATES = [
     'app.apps.AppConfig',
     'app.core',
     'app.api',
-    'app.models.apps.ModelsConfig',
-    'app.services',
     'app.utils',
 ]
 
@@ -104,8 +102,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Пользовательская модель пользователя (метка приложения взята из ModelsConfig.label)
-AUTH_USER_MODEL = 'app_models.User'
+# Пользовательская модель пользователя
+AUTH_USER_MODEL = 'app.User'
 
 # Database
 DATABASES = {
