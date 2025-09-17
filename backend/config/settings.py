@@ -5,6 +5,7 @@ Django settings for WorkerNet Portal project.
 import os
 from pathlib import Path
 import environ
+import importlib.util
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -48,13 +49,23 @@ THIRD_PARTY_APPS = [
     'django_prometheus',
 ]
 
-LOCAL_APPS = [
+# Подключаем локальные приложения только если соответствующие пакеты существуют
+def _app_exists(dotted: str) -> bool:
+    module_to_check = dotted.split('.apps.')[0] if '.apps.' in dotted else dotted
+    try:
+        return importlib.util.find_spec(module_to_check) is not None
+    except Exception:
+        return False
+
+_LOCAL_APP_CANDIDATES = [
     'app.core',
     'app.api',
     'app.models.apps.ModelsConfig',
     'app.services',
     'app.utils',
 ]
+
+LOCAL_APPS = [name for name in _LOCAL_APP_CANDIDATES if _app_exists(name)]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -92,8 +103,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Пользовательская модель пользователя
-AUTH_USER_MODEL = 'models.User'
+# Пользовательская модель пользователя (метка приложения взята из ModelsConfig.label)
+AUTH_USER_MODEL = 'app_models.User'
 
 # Database
 DATABASES = {
