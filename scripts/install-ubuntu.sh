@@ -555,7 +555,49 @@ setup_nodejs_env() {
     print_status "Настраиваем окружение Node.js..."
     
     cd ../frontend
-    npm install
+    # Базовые настройки npm
+    npm config set fund false >/dev/null 2>&1 || true
+    npm config set audit false >/dev/null 2>&1 || true
+    npm config set progress false >/dev/null 2>&1 || true
+    npm config set fetch-retries 3 >/dev/null 2>&1 || true
+    npm config set fetch-retry-factor 2 >/dev/null 2>&1 || true
+    npm config set fetch-retry-maxtimeout 120000 >/dev/null 2>&1 || true
+    npm config set fetch-timeout 120000 >/dev/null 2>&1 || true
+
+    # Прокси из переменных окружения, если заданы
+    if [ -n "${HTTPS_PROXY:-${https_proxy:-}}" ]; then
+        npm config set https-proxy "${HTTPS_PROXY:-${https_proxy}}" >/dev/null 2>&1 || true
+    fi
+    if [ -n "${HTTP_PROXY:-${http_proxy:-}}" ]; then
+        npm config set proxy "${HTTP_PROXY:-${http_proxy}}" >/dev/null 2>&1 || true
+    fi
+
+    INSTALL_CMD="npm install"
+    [ -f package-lock.json ] && INSTALL_CMD="npm ci"
+
+    # Последовательно пробуем реестры с повторами
+    REGISTRIES=(
+        "https://registry.npmjs.org"
+        "https://registry.npmmirror.com"
+    )
+
+    INSTALL_OK=false
+    for REG in "${REGISTRIES[@]}"; do
+        npm config set registry "$REG" >/dev/null 2>&1 || true
+        for ATTEMPT in 1 2 3; do
+            echo "Attempt $ATTEMPT with registry: $REG"
+            if $INSTALL_CMD; then
+                INSTALL_OK=true
+                break
+            fi
+            sleep $((ATTEMPT * 2))
+        done
+        [ "$INSTALL_OK" = true ] && break
+    done
+
+    if [ "$INSTALL_OK" != true ]; then
+        print_warning "npm install не удалось после нескольких попыток. Проверьте сеть/прокси."
+    fi
     
     print_success "Окружение Node.js настроено"
 }

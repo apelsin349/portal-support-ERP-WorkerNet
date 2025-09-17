@@ -326,7 +326,24 @@ nvm use 18
 npm -v  # должна вывести версию
 ```
 
-### 3. Предупреждение APT: "Missing Signed-By ... for http://ru.archive.ubuntu.com/ubuntu"
+### 3. npm ETIMEDOUT / проблемы с прокси
+```bash
+# Настроить прокси, если используется
+npm config set proxy "$HTTP_PROXY"   # либо http_proxy
+npm config set https-proxy "$HTTPS_PROXY"  # либо https_proxy
+
+# Увеличить таймауты и повторы
+npm config set fetch-retries 3
+npm config set fetch-retry-factor 2
+npm config set fetch-retry-maxtimeout 120000
+npm config set fetch-timeout 120000
+
+# Поменять реестр и повторить установку
+npm config set registry https://registry.npmjs.org
+cd frontend && ( [ -f package-lock.json ] && npm ci || npm install )
+```
+
+### 4. Предупреждение APT: "Missing Signed-By ... for http://ru.archive.ubuntu.com/ubuntu"
 - Это предупреждение допустимо для стандартных зеркал Ubuntu. Можно игнорировать.
 - Чтобы вернуться на зеркала Ubuntu по умолчанию:
 ```bash
@@ -336,7 +353,7 @@ sudo sed -i 's|http://ru.archive.ubuntu.com/ubuntu|http://security.ubuntu.com/ub
 sudo apt update
 ```
 
-### 4. Проблемы с Docker
+### 5. Проблемы с Docker
 ```bash
 # Очистка Docker
 docker system prune -a
@@ -347,7 +364,7 @@ docker-compose down
 docker-compose up -d --build
 ```
 
-### 5. Проблемы с базой данных
+### 6. Проблемы с базой данных
 ```bash
 # Проверка подключения
 psql -U workernet -d worker_net -h localhost
@@ -358,7 +375,7 @@ createdb -U workernet worker_net
 python manage.py migrate
 ```
 
-### 6. Проблемы с Redis
+### 7. Проблемы с Redis
 ```bash
 # Проверка статуса
 redis-cli ping
@@ -367,7 +384,7 @@ redis-cli ping
 redis-cli flushall
 ```
 
-### 7. Проблемы с портами
+### 8. Проблемы с портами
 ```bash
 # Проверка занятых портов
 sudo netstat -tulpn | grep :8000
