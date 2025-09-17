@@ -562,16 +562,39 @@ setup_python_env() {
 setup_nodejs_env() {
     print_status "Настраиваем окружение Node.js..."
     
-    # Переходим в каталог фронтенда надёжно (абсолютный путь), иначе пробуем относительный
-    if [ -f "$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend/package.json" ]; then
-        cd "$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend"
-    elif [ -f "../frontend/package.json" ]; then
-        cd ../frontend
-    else
-        print_error "Не найден package.json фронтенда. Ожидалось по пути: $HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend"
-        echo "Проверьте, что репозиторий клонирован и структура каталогов стандартная."
-        exit 1
+    # Ищем каталог фронтенда максимально устойчиво
+    CANDIDATES=(
+        "$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend"
+        "../frontend"
+        "./frontend"
+        "../../frontend"
+    )
+    # Попытка извлечь корень git-репозитория и добавить как кандидат
+    GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    if [ -n "$GIT_ROOT" ] && [ -d "$GIT_ROOT/frontend" ]; then
+        CANDIDATES+=("$GIT_ROOT/frontend")
     fi
+
+    FRONTEND_DIR=""
+    for p in "${CANDIDATES[@]}"; do
+        if [ -f "$p/package.json" ]; then FRONTEND_DIR="$p"; break; fi
+    done
+
+    # Если не нашли — пробуем поискать в $HOME (ограничим глубину для скорости)
+    if [ -z "$FRONTEND_DIR" ]; then
+        FOUND=$(find "$HOME" -maxdepth 6 -type f -name package.json -path "*/frontend/package.json" -print -quit 2>/dev/null || true)
+        if [ -n "$FOUND" ]; then
+            FRONTEND_DIR=$(dirname "$FOUND")
+        fi
+    fi
+
+    if [ -z "$FRONTEND_DIR" ]; then
+        print_warning "Каталог фронтенда не найден. Пропускаем установку npm-зависимостей."
+        echo "Подсказка: ожидается каталог 'frontend' с package.json."
+        return 0
+    fi
+
+    cd "$FRONTEND_DIR"
     # Базовые настройки npm
     npm config set fund false >/dev/null 2>&1 || true
     npm config set audit false >/dev/null 2>&1 || true
