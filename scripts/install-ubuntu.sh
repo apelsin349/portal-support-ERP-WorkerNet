@@ -602,7 +602,7 @@ setup_environment() {
 setup_python_env() {
     print_status "Настраиваем виртуальное окружение Python..."
     
-    cd "${WORKERNET_ROOT:-.}/backend"
+    cd "$WORKERNET_ROOT/backend"
     "${WORKERNET_PY3:-python3}" -m venv venv
     source venv/bin/activate
     python -m pip install -U pip setuptools wheel
@@ -623,7 +623,7 @@ setup_nodejs_env() {
     
     # Ищем каталог фронтенда максимально устойчиво
     CANDIDATES=(
-        "${WORKERNET_ROOT:-.}/frontend"
+        "${WORKERNET_ROOT}/frontend"
         "../frontend"
         "./frontend"
         "../../frontend"
@@ -718,7 +718,7 @@ setup_nodejs_env() {
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
     
-    cd "${WORKERNET_ROOT:-.}/backend"
+    cd "$WORKERNET_ROOT/backend"
     source venv/bin/activate
     python manage.py migrate
     python manage.py collectstatic --noinput
@@ -730,7 +730,7 @@ run_migrations() {
 create_superuser() {
     print_status "Создаём суперпользователя..."
     
-    cd "${WORKERNET_ROOT:-.}/backend"
+    cd "$WORKERNET_ROOT/backend"
     source venv/bin/activate
     
     # Create superuser non-interactively
@@ -779,9 +779,9 @@ After=network.target postgresql.service redis.service
 [Service]
 Type=simple
 User=$USER
-WorkingDirectory=${WORKERNET_ROOT}/backend
-Environment=PATH=${WORKERNET_ROOT}/backend/venv/bin
-ExecStart=${WORKERNET_ROOT}/backend/venv/bin/python manage.py runserver 0.0.0.0:8000
+WorkingDirectory=$WORKERNET_ROOT/backend
+Environment=PATH=$WORKERNET_ROOT/backend/venv/bin
+ExecStart=$WORKERNET_ROOT/backend/venv/bin/python manage.py runserver 0.0.0.0:8000
 Restart=always
 
 [Install]
@@ -797,7 +797,7 @@ After=network.target workernet-backend.service
 [Service]
 Type=simple
 User=$USER
-WorkingDirectory=${WORKERNET_ROOT}/frontend
+WorkingDirectory=$WORKERNET_ROOT/frontend
 Environment=PATH=/usr/bin:/bin
 ExecStart=/usr/bin/npm start
 Restart=always
