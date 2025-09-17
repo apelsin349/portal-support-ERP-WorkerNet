@@ -2,30 +2,31 @@
 
 set -euo pipefail
 
-# Быстрый smoke-тест в Docker окружении (локально или на сервере с Docker)
+# Быстрый smoke‑тест в Docker‑окружении (локально или на сервере с Docker)
 
-log() { echo -e "\033[0;34m[INFO]\033[0m $*"; }
+log() { echo -e "\033[0;34m[ИНФО]\033[0m $*"; }
 ok() { echo -e "\033[0;32m[OK]\033[0m $*"; }
-err() { echo -e "\033[0;31m[ERR]\033[0m $*"; }
+err() { echo -e "\033[0;31m[ОШИБКА]\033[0m $*"; }
 
-require() { command -v "$1" >/dev/null 2>&1 || { err "Не найдено: $1"; exit 1; }; }
+# Проверка наличия команды
+require() { command -v "$1" >/dev/null 2>&1 || { err "Не найдена команда: $1"; exit 1; }; }
 
 require docker
 docker compose version >/dev/null 2>&1 || alias docker-compose='docker compose'
 
-log "Сборка и запуск сервисов"
+log "Сборка и запуск сервисов (detached)"
 docker compose up -d --build
 
-log "Ожидание старта"
+log "Ожидание старта сервисов (15 секунд)"
 sleep 15
 
-log "Миграции"
+log "Запуск миграций Django"
 docker compose exec -T backend python manage.py migrate
 
-log "Health check"
+log "Проверка эндпоинта /health/"
 HTTP_CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" http://localhost:8000/health/ || true)
-if [ "$HTTP_CODE" != "200" ]; then err "Health=$HTTP_CODE"; cat /tmp/health.json || true; docker compose logs backend | tail -n 200; exit 1; fi
-ok "Health: 200"
+if [ "$HTTP_CODE" != "200" ]; then err "Сервис нездоров: $HTTP_CODE"; cat /tmp/health.json || true; docker compose logs backend | tail -n 200; exit 1; fi
+ok "Сервис здоров: 200"
 
 log "Генерация токена и тест API"
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login/ -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' | jq -r .access || true)
@@ -38,5 +39,5 @@ else
   ok "API доступен с JWT"
 fi
 
-ok "Smoke-тест Docker завершён"
+ok "Smoke‑тест Docker завершён"
 
