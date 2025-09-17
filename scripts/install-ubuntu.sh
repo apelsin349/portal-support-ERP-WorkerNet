@@ -171,19 +171,50 @@ install_nodejs() {
     else
         print_warning "Failed to install from NodeSource. Falling back to Ubuntu repository..."
         sudo apt update || true
-        if sudo apt install -y nodejs npm; then
+        if sudo apt install -y nodejs; then
+            # Try npm separately only if available without conflicts
+            sudo apt install -y npm || true
             print_success "Node.js installed from Ubuntu repo (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
         else
-            print_warning "Ubuntu repo installation failed. Trying NVM as a last resort..."
+            print_warning "Ubuntu repo installation failed. Trying NVM..."
             # Install NVM and Node 18 for the current user
             curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
             # shellcheck source=/dev/null
             source "$HOME/.nvm/nvm.sh" || true
             if command -v nvm >/dev/null 2>&1; then
-                nvm install 18 && nvm alias default 18 && nvm use 18
-                print_success "Node.js installed via NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+                if ! nvm install 18; then
+                    print_warning "NVM install failed. Retrying with alternative mirror..."
+                    export NVM_NODEJS_ORG_MIRROR="https://npmmirror.com/mirrors/node"
+                    export NVM_IOJS_ORG_MIRROR="https://npmmirror.com/mirrors/iojs"
+                    nvm install 18 || true
+                fi
+                if command -v node >/dev/null 2>&1; then
+                    nvm alias default 18 && nvm use 18
+                    print_success "Node.js installed via NVM (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+                else
+                    print_warning "NVM route failed. Trying Snap as last resort..."
+                    if sudo snap install node --channel=18/stable --classic; then
+                        # Ensure snap bin in PATH for non-login shells
+                        if ! echo "$PATH" | grep -q "/snap/bin"; then
+                            echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
+                            export PATH="/snap/bin:$PATH"
+                        fi
+                        print_success "Node.js installed via Snap (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+                    else
+                        print_error "Failed to install Node.js via all methods. Please check network connectivity and try again."
+                        exit 1
+                    fi
+                fi
             else
-                print_error "Failed to install Node.js via all methods. Please check network connectivity and try again."
+                print_warning "NVM not available after install. Trying Snap as last resort..."
+                if sudo snap install node --channel=18/stable --classic; then
+                    if ! echo "$PATH" | grep -q "/snap/bin"; then
+                        echo 'export PATH="/snap/bin:$PATH"' >> "$HOME/.profile"
+                        export PATH="/snap/bin:$PATH"
+                    fi
+                    print_success "Node.js installed via Snap (Node: $(node -v 2>/dev/null), NPM: $(npm -v 2>/dev/null))"
+                else
+                    print_error "Failed to install Node.js via all methods. Please check network connectivity and try again."
                 exit 1
             fi
         fi
