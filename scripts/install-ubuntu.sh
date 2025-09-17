@@ -623,7 +623,7 @@ setup_nodejs_env() {
     
     # Ищем каталог фронтенда максимально устойчиво
     CANDIDATES=(
-        "$HOME/workernet-portal/portal-support-ERP-WorkerNet/frontend"
+        "${WORKERNET_ROOT:-.}/frontend"
         "../frontend"
         "./frontend"
         "../../frontend"
