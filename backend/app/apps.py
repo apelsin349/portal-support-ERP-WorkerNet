@@ -6,13 +6,9 @@ class AppConfig(AppConfig):
     verbose_name = 'Приложение WorkerNet'
 
     def ready(self):
-        # Импортируем модули моделей, чтобы Django зарегистрировал модели из пакета app.models
+        # Импортируем модели для регистрации в Django
         try:
-            from .models import tenant  # noqa: F401
-            from .models import ticket  # noqa: F401
-            from .models import knowledge  # noqa: F401
-            from .models import chat  # noqa: F401
-            from .models import notification  # noqa: F401
+            from .models import *  # noqa: F401, F403
         except Exception:
             # Избегаем падений при командах, не требующих загрузки всех моделей
             pass

@@ -1,6 +1,15 @@
 # Пакет моделей
-# ВАЖНО: не импортируем модели здесь, чтобы не вызывать загрузку приложений раньше времени
-# Импортируйте нужные модели из конкретных модулей:
-# from app.models.tenant import User, Tenant
-# from app.models.ticket import Ticket
-# from app.models.knowledge import KnowledgeArticle
+# Импортируем все модели для регистрации в Django
+from .tenant import User, Tenant, TenantConfiguration
+from .ticket import Ticket, TicketComment, TicketAttachment, Tag, SLA, TicketSLA
+from .knowledge import KnowledgeCategory, KnowledgeArticle, KnowledgeArticleAttachment, KnowledgeArticleRating, KnowledgeArticleView, KnowledgeSearch
+from .chat import ChatMessage
+from .notification import Notification
+
+__all__ = [
+    'User', 'Tenant', 'TenantConfiguration',
+    'Ticket', 'TicketComment', 'TicketAttachment', 'Tag', 'SLA', 'TicketSLA',
+    'KnowledgeCategory', 'KnowledgeArticle', 'KnowledgeArticleAttachment', 'KnowledgeArticleRating', 'KnowledgeArticleView', 'KnowledgeSearch',
+    'ChatMessage',
+    'Notification',
+]
