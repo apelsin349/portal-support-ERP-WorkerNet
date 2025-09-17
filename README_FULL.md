@@ -2,20 +2,22 @@
 
 ## 🚀 Быстрый старт
 
-### Автоматическая установка на Ubuntu 24.04 LTS
-
+### 1) Важно: запускать не под root
 ```bash
-# Важно: НЕ запускайте под root. Используйте обычного пользователя с sudo.
-# Если вы сейчас под root, создайте пользователя и переключитесь на него:
-# adduser workernet && usermod -aG sudo workernet && su - workernet
+adduser workernet
+usermod -aG sudo workernet
+su - workernet
+```
 
-# Скачать и запустить скрипт установки (поправим URL репозитория внутри скрипта)
+### 2) Автоматическая установка на Ubuntu 24.04 LTS (рекомендуется)
+```bash
+# Скачать и запустить скрипт установки (с актуальным URL репозитория)
 curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh \
 | sed 's|https://github.com/your-org/portal-support-ERP-WorkerNet.git|https://github.com/apelsin349/portal-support-ERP-WorkerNet.git|' \
 | bash
 ```
 
-### Запуск через Docker (рекомендуется)
+### 3) Запуск через Docker вручную
 
 ```bash
 # Клонировать репозиторий
@@ -27,7 +29,7 @@ chmod +x scripts/start-docker.sh
 ./scripts/start-docker.sh start
 ```
 
-### Быстрая проверка (smoke-тест) в Docker
+### 4) Быстрая проверка (smoke-тест) в Docker
 ```bash
 chmod +x scripts/ci-smoke-docker.sh
 ./scripts/ci-smoke-docker.sh
@@ -99,8 +101,8 @@ sudo apt update && sudo apt upgrade -y
 # Установить основные пакеты
 sudo apt install -y curl wget git build-essential software-properties-common
 
-# Установить Python 3.11
-sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+# Установить Python (используйте доступный python3)
+sudo apt install -y python3 python3-venv python3-dev python3-pip
 
 # Установить Node.js 18
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -

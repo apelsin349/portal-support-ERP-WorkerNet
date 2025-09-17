@@ -89,12 +89,27 @@ install_basic_packages() {
     print_success "Basic packages installed successfully"
 }
 
-# Function to install Python 3.11
+# Function to install Python (prefer 3.12 on Ubuntu 24.04, fallback to 3.11, else generic python3)
 install_python() {
-    print_status "Installing Python 3.11..."
-    sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
-    sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-    print_success "Python 3.11 installed successfully"
+    print_status "Installing Python..."
+
+    PYTHON_TARGET=""
+
+    if sudo apt install -y python3.12 python3.12-venv python3.12-dev python3-pip; then
+        PYTHON_TARGET="/usr/bin/python3.12"
+    elif sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip; then
+        PYTHON_TARGET="/usr/bin/python3.11"
+    else
+        # Fallback to default python3 packages available on the system
+        sudo apt install -y python3 python3-venv python3-dev python3-pip
+    fi
+
+    if [[ -n "$PYTHON_TARGET" && -x "$PYTHON_TARGET" ]]; then
+        sudo update-alternatives --install /usr/bin/python3 python3 "$PYTHON_TARGET" 1
+        print_success "Python installed successfully ($("$PYTHON_TARGET" -V 2>&1))"
+    else
+        print_success "Python installed successfully ($(python3 -V 2>&1))"
+    fi
 }
 
 # Function to install Node.js 18
@@ -213,7 +228,7 @@ clone_repository() {
         cd portal-support-ERP-WorkerNet
         git pull origin main
     else
-        git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+        git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
         cd portal-support-ERP-WorkerNet
     fi
     

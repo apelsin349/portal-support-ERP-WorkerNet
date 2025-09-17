@@ -1,7 +1,14 @@
 # WorkerNet Portal - Полная инструкция для Ubuntu 24
 
 ## 🚀 Быстрый старт на Ubuntu 24.04 LTS
-### Авто-установка (не под root)
+### 0) Важно: запустите не под root
+```bash
+adduser workernet
+usermod -aG sudo workernet
+su - workernet
+```
+
+### 1) Авто-установка (рекомендуется)
 ```bash
 # Если вы сейчас под root, создайте пользователя с sudo и войдите под ним:
 # adduser workernet
@@ -15,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/apelsin349/portal-support-ERP-Worke
 | bash
 ```
 
-### Системные требования
+### 2) Системные требования
 - Ubuntu 24.04 LTS (или новее)
 - 4+ GB RAM
 - 20+ GB свободного места
@@ -33,10 +40,10 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y curl wget git build-essential software-properties-common apt-transport-https ca-certificates gnupg lsb-release
 ```
 
-### 3. Установка Python 3.11+
+### 3. Установка Python
 ```bash
-sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
-sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+# На Ubuntu 24.04 обычно доступен Python 3.12. Используйте доступный пакет.
+sudo apt install -y python3 python3-venv python3-dev python3-pip
 ```
 
 ### 4. Установка Node.js 18+
