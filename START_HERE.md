@@ -189,6 +189,12 @@ bash scripts/install-ubuntu.sh --self-update
 WORKERNET_SELF_UPDATE=1 bash scripts/quick-update.sh
 # или
 bash scripts/quick-update.sh --self-update
+ 
+# Если при запуске получаете "Permission denied"
+chmod +x scripts/quick-update.sh scripts/install-ubuntu.sh
+# или запускайте так
+bash scripts/quick-update.sh
+bash scripts/install-ubuntu.sh
 ```
 - **Kibana**: http://localhost:5601
 - **Celery Flower**: http://localhost:5555

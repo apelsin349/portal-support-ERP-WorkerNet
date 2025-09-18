@@ -143,22 +143,49 @@ update_code() {
 
 # Обновление зависимостей Python
 update_python_deps() {
-    if [ -d "$PROJECT_DIR/backend" ] && [ -f "$PROJECT_DIR/backend/venv/bin/activate" ]; then
-        print_status "Обновляем зависимости Python..."
-        
-        cd "$PROJECT_DIR/backend"
-        source venv/bin/activate
-        
-        pip install -U pip setuptools wheel
-        pip install -r requirements.txt
-        if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
+    # Определяем путь к venv (по умолчанию backend/venv)
+    VENV_DIR="$PROJECT_DIR/backend/venv"
+    if [ ! -f "$VENV_DIR/bin/activate" ]; then
+        print_warning "Виртуальное окружение не найдено в $VENV_DIR"
+        # Пытаемся найти альтернативный venv
+        if [ -f "$PROJECT_DIR/venv/bin/activate" ]; then
+            VENV_DIR="$PROJECT_DIR/venv"
+            print_status "Используем альтернативный venv: $VENV_DIR"
+        else
+            print_warning "Виртуальное окружение Python не найдено — пропускаем обновление Python зависимостей"
+            return 0
         fi
-        
-        print_success "Зависимости Python обновлены"
-    else
-        print_warning "Виртуальное окружение Python не найдено"
     fi
+
+    print_status "Обновляем зависимости Python..."
+
+    # Активируем окружение
+    # shellcheck disable=SC1090
+    source "$VENV_DIR/bin/activate"
+
+    pip install -U pip setuptools wheel
+
+    # Ищем requirements: сначала в backend/, затем в корне
+    REQ_PRIMARY="$PROJECT_DIR/backend/requirements.txt"
+    REQ_SECONDARY="$PROJECT_DIR/requirements.txt"
+    DEV_PRIMARY="$PROJECT_DIR/backend/requirements-dev.txt"
+    DEV_SECONDARY="$PROJECT_DIR/requirements-dev.txt"
+
+    if [ -f "$REQ_PRIMARY" ]; then
+        pip install -r "$REQ_PRIMARY"
+    elif [ -f "$REQ_SECONDARY" ]; then
+        pip install -r "$REQ_SECONDARY"
+    else
+        print_warning "requirements.txt не найден ни в backend/, ни в корне — пропускаем установку основных зависимостей"
+    fi
+
+    if [ -f "$DEV_PRIMARY" ]; then
+        pip install -r "$DEV_PRIMARY"
+    elif [ -f "$DEV_SECONDARY" ]; then
+        pip install -r "$DEV_SECONDARY"
+    fi
+
+    print_success "Зависимости Python обновлены"
 }
 
 # Обновление зависимостей Node.js
@@ -177,16 +204,28 @@ update_nodejs_deps() {
 
 # Выполнение миграций
 run_migrations() {
-    if [ -d "$PROJECT_DIR/backend" ] && [ -f "$PROJECT_DIR/backend/venv/bin/activate" ]; then
+    if [ -d "$PROJECT_DIR/backend" ]; then
         print_status "Выполняем миграции базы данных..."
         
         cd "$PROJECT_DIR/backend"
-        source venv/bin/activate
+        # Активируем venv, если он есть
+        if [ -f "venv/bin/activate" ]; then
+            # shellcheck disable=SC1091
+            source venv/bin/activate
+        elif [ -f "$PROJECT_DIR/venv/bin/activate" ]; then
+            # shellcheck disable=SC1091
+            source "$PROJECT_DIR/venv/bin/activate"
+        else
+            print_warning "Виртуальное окружение не найдено — пытаемся запустить системным Python"
+        fi
         
-        python manage.py migrate
-        python manage.py collectstatic --noinput
-        
-        print_success "Миграции выполнены"
+        if command -v python >/dev/null 2>&1; then
+            python manage.py migrate || { print_error "Ошибка выполнения миграций"; return 1; }
+            python manage.py collectstatic --noinput || true
+            print_success "Миграции выполнены"
+        else
+            print_error "Python не найден в PATH — пропускаем миграции"
+        fi
     else
         print_warning "Не удалось выполнить миграции - виртуальное окружение не найдено"
     fi

@@ -72,6 +72,12 @@ export WORKERNET_NONINTERACTIVE=1
 WORKERNET_SELF_UPDATE=1 ./scripts/quick-update.sh
 # или
 ./scripts/quick-update.sh --self-update
+
+# Если получаете "Permission denied"
+chmod +x scripts/quick-update.sh scripts/install-ubuntu.sh
+# или запускайте так
+bash scripts/quick-update.sh
+bash scripts/install-ubuntu.sh
 ```
 
 ### 3. `start-docker.sh` - Запуск в Docker

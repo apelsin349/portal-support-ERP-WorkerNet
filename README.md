@@ -2253,6 +2253,21 @@ WORKERNET_RAW_SCRIPT_URL=https://raw.githubusercontent.com/apelsin349/portal-sup
   WORKERNET_SELF_UPDATE=1 bash scripts/install-ubuntu.sh
 ```
 
+### Если видите "Permission denied" при запуске скриптов
+
+Сделайте файл исполняемым один раз:
+
+```bash
+chmod +x scripts/quick-update.sh scripts/install-ubuntu.sh
+```
+
+Либо запускайте через интерпретатор:
+
+```bash
+bash scripts/quick-update.sh
+bash scripts/install-ubuntu.sh
+```
+
 **Мобильное приложение:**
 - **Android**: Запуск через Android Studio или `npx react-native run-android`
 - **iOS**: Запуск через Xcode или `npx react-native run-ios`
