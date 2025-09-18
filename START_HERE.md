@@ -37,14 +37,14 @@ chmod +x scripts/*.sh
 - **[QUICK_START.md](QUICK_START.md)** - Быстрый старт за 5 минут
 - **[README_FULL.md](README_FULL.md)** - Полная документация
 - **[README_UBUNTU24.md](README_UBUNTU24.md)** - Инструкции для Ubuntu 24.04
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Развертывание в продакшене
+- **[РАЗВЕРТЫВАНИЕ.md](РАЗВЕРТЫВАНИЕ.md)** - Развертывание в продакшене
 
 ### Техническая документация
-- **[API.md](API.md)** - API документация
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Архитектура системы
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Разработка
-- **[TESTING.md](TESTING.md)** - Тестирование
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Устранение неполадок
+- **[API_ДОКУМЕНТАЦИЯ.md](API_ДОКУМЕНТАЦИЯ.md)** - API документация
+- **[АРХИТЕКТУРА.md](АРХИТЕКТУРА.md)** - Архитектура системы
+- **[РАЗРАБОТКА.md](РАЗРАБОТКА.md)** - Разработка
+- **[ТЕСТИРОВАНИЕ.md](ТЕСТИРОВАНИЕ.md)** - Тестирование
+- **[УСТРАНЕНИЕ_НЕПОЛАДОК.md](УСТРАНЕНИЕ_НЕПОЛАДОК.md)** - Устранение неполадок
 
 ## 🛠️ Альтернативные способы запуска
 
@@ -164,6 +164,18 @@ docker-compose exec frontend npm run build
 - **Admin Panel**: http://localhost:8000/admin
 - **Grafana**: http://localhost:3001 (admin/admin123)
 - **Prometheus**: http://localhost:9090
+
+### Мониторинг через скрипт
+По умолчанию при установке устанавливаются Prometheus и Grafana. Отключить:
+
+```bash
+WORKERNET_INSTALL_MONITORING=0 ./scripts/install-ubuntu.sh
+```
+
+Проверка:
+```bash
+sudo systemctl status prometheus grafana-server
+```
 - **Kibana**: http://localhost:5601
 - **Celery Flower**: http://localhost:5555
 
@@ -287,8 +299,8 @@ cd ../frontend && npm test
 ## 📞 Поддержка
 
 ### Получение помощи
-- **GitHub Issues**: [Создать issue](https://github.com/your-org/portal-support-ERP-WorkerNet/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/portal-support-ERP-WorkerNet/discussions)
+- **GitHub Issues**: [Создать issue](https://github.com/apelsin349/portal-support-ERP-WorkerNet/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/apelsin349/portal-support-ERP-WorkerNet/discussions)
 - **Email**: support@workernet.com
 - **Документация**: [docs.workernet.com](https://docs.workernet.com)
 

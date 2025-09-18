@@ -133,7 +133,7 @@ portal-support-ERP-WorkerNet/
 
 ### 1. Клонирование и настройка
 ```bash
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 ```
 

@@ -2215,6 +2215,22 @@ exit
 - **Celery Flower**: http://localhost:5555
 - **Grafana**: http://localhost:3001 (admin/admin)
 - **Prometheus**: http://localhost:9090
+ 
+### Мониторинг через скрипт установки
+
+Скрипт `scripts/install-ubuntu.sh` устанавливает Prometheus и Grafana по умолчанию. Для отключения:
+
+```bash
+WORKERNET_INSTALL_MONITORING=0 ./scripts/install-ubuntu.sh
+```
+
+Проверка статуса после установки:
+
+```bash
+sudo systemctl status prometheus grafana-server
+curl -I http://localhost:9090
+curl -I http://localhost:3000
+```
 
 **Мобильное приложение:**
 - **Android**: Запуск через Android Studio или `npx react-native run-android`
@@ -3019,11 +3035,11 @@ git push origin feature/amazing-feature
 - Время работы: Пн-Пт 9:00-18:00 MSK
 
 **Сообщения об ошибках**
-- GitHub Issues: [Создать issue](https://github.com/your-org/portal-support-ERP-WorkerNet/issues)
+- GitHub Issues: [Создать issue](https://github.com/apelsin349/portal-support-ERP-WorkerNet/issues)
 - Email: bugs@workernet.com
 
 **Предложения по улучшению**
-- GitHub Discussions: [Обсуждения](https://github.com/your-org/portal-support-ERP-WorkerNet/discussions)
+- GitHub Discussions: [Обсуждения](https://github.com/apelsin349/portal-support-ERP-WorkerNet/discussions)
 - Email: feedback@workernet.com
 
 ### 📚 Документация проекта

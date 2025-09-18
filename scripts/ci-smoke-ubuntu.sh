@@ -48,7 +48,7 @@ mkdir -p "$WORKDIR"
 cd "$WORKDIR"
 
 log "Клонирование репозитория (если основной недоступен — используем зеркало)"
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git app || git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git app
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git app || git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git app
 cd app
 
 log "Подготовка .env (автогенерация из env.example, секреты)"

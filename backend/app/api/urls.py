@@ -52,6 +52,15 @@ urlpatterns = [
     # Template URLs
     path('templates/', include('app.api.urls.template')),
 
+    # Rating URLs
+    path('ratings/', include('app.api.urls.rating')),
+
+    # Automation URLs
+    path('automation/', include('app.api.urls.automation')),
+
+    # Performance Monitoring URLs
+    path('performance/', include('app.api.urls.performance')),
+
     # JWT tokens (legacy)
     path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

@@ -345,6 +345,74 @@ install_redis() {
     print_success "Redis установлен"
 }
 
+# Установка Prometheus и Grafana (опционально)
+install_monitoring_stack() {
+    print_status "Устанавливаем Prometheus и Grafana..."
+
+    # Репозиторий Grafana
+    if ! grep -q "packages.grafana.com" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        print_status "Добавляем репозиторий Grafana..."
+        wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add - >/dev/null 2>&1 || true
+        echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list >/dev/null
+    fi
+
+    sudo apt update -y
+    sudo apt install -y prometheus grafana || true
+
+    # Включаем автозапуск
+    sudo systemctl enable prometheus 2>/dev/null || true
+    sudo systemctl enable grafana-server 2>/dev/null || true
+
+    # Применяем нашу конфигурацию Prometheus, если она есть в репозитории
+    if [ -f "$WORKERNET_ROOT/config/prometheus.yml" ]; then
+        print_status "Копируем конфигурацию Prometheus из репозитория..."
+        sudo mkdir -p /etc/prometheus
+        sudo cp -f "$WORKERNET_ROOT/config/prometheus.yml" /etc/prometheus/prometheus.yml
+    fi
+    if [ -f "$WORKERNET_ROOT/config/alert_rules.yml" ]; then
+        sudo cp -f "$WORKERNET_ROOT/config/alert_rules.yml" /etc/prometheus/alert_rules.yml
+    fi
+
+    # Перезапускаем сервисы
+    sudo systemctl restart prometheus 2>/dev/null || true
+    sudo systemctl restart grafana-server 2>/dev/null || true
+
+    print_success "Prometheus и Grafana установлены"
+}
+
+# Проверка Prometheus и Grafana
+verify_monitoring_stack() {
+    print_status "Проверяем Prometheus и Grafana..."
+
+    local ok=true
+
+    # Проверяем systemd статусы
+    if systemctl is-active --quiet prometheus; then
+        print_success "Prometheus: активен"
+    else
+        print_warning "Prometheus: не запущен"
+        ok=false
+    fi
+    if systemctl is-active --quiet grafana-server; then
+        print_success "Grafana: активна"
+    else
+        print_warning "Grafana: не запущена"
+        ok=false
+    fi
+
+    # Проверка портов
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsS http://localhost:9090 >/dev/null 2>&1 && print_success "Prometheus UI доступен: http://localhost:9090" || { print_warning "Prometheus UI недоступен: http://localhost:9090"; ok=false; }
+        curl -fsS http://localhost:3000 >/dev/null 2>&1 && print_success "Grafana UI доступна: http://localhost:3000 (admin/admin)" || { print_warning "Grafana UI недоступна: http://localhost:3000"; ok=false; }
+    fi
+
+    if [ "$ok" = true ]; then
+        print_success "Мониторинг работает корректно"
+    else
+        print_warning "Мониторинг настроен не полностью. Проверьте логи: sudo journalctl -u prometheus -u grafana-server -f"
+    fi
+}
+
 # Установка Docker
 install_docker() {
     print_status "Устанавливаем Docker..."
@@ -1651,6 +1719,13 @@ main() {
         # Configuration
         configure_redis
         
+        # Optional monitoring stack (Prometheus + Grafana) если включено
+        if [ "${WORKERNET_INSTALL_MONITORING:-1}" = "1" ]; then
+            install_monitoring_stack
+        else
+            print_status "Пропускаем установку мониторинга (WORKERNET_INSTALL_MONITORING=0)"
+        fi
+        
         # Project setup
         create_project_directory
         clone_repository
@@ -1674,6 +1749,11 @@ main() {
         
         # Создаем скрипт автоматического обновления
         create_auto_update_script
+        
+        # Проверка мониторинга
+        if [ "${WORKERNET_INSTALL_MONITORING:-1}" = "1" ]; then
+            verify_monitoring_stack
+        fi
         
         # Final information
         show_final_info

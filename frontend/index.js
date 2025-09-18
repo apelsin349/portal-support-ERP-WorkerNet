@@ -1,49 +1,74 @@
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from src directory
-app.use(express.static(path.join(__dirname, 'src')));
+// Middleware
+app.use(helmet());
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Basic health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'portal-support-frontend' });
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
 });
+app.use(limiter);
 
-// Serve main page
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// API Routes
+app.use('/api', require('./routes/api'));
+
+// Main routes
 app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Portal Support ERP WorkerNet</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            h1 { color: #333; text-align: center; }
-            .status { background: #e8f5e8; padding: 15px; border-radius: 4px; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Portal Support ERP WorkerNet</h1>
-            <div class="status">
-                <h3>Frontend Service Status</h3>
-                <p>✅ Frontend service is running</p>
-                <p>📦 Package.json found and loaded</p>
-                <p>🔧 Ready for development</p>
-            </div>
-            <p>This is a placeholder frontend for the Portal Support ERP WorkerNet system.</p>
-        </div>
-    </body>
-    </html>
-  `);
+  res.json({
+    message: 'WorkerNet Portal Frontend',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      docs: '/api/docs'
+    }
+  });
 });
 
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Something went wrong!',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Route ${req.method} ${req.path} not found`
+  });
+});
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`Frontend server running on port ${PORT}`);
+  console.log(`🚀 Frontend server running on port ${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔗 API endpoints: http://localhost:${PORT}/api`);
 });
