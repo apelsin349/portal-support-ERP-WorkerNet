@@ -46,9 +46,32 @@ check_and_fix_database() {
     print_warning "Проблема с базой данных, исправляем..."
     
     # Удаляем и пересоздаем пользователя и базу данных
-    sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
+    # Проверяем, существует ли пользователь
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+        print_status "Пользователь $DB_USER существует, удаляем..."
+        
+        # Завершаем все активные сессии пользователя
+        sudo -u postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '$DB_USER';" 2>/dev/null || true
+        sleep 1
+        
+        # Удаляем все объекты, принадлежащие пользователю
+        sudo -u postgres psql -c "REASSIGN OWNED BY $DB_USER TO postgres;" 2>/dev/null || true
+        sudo -u postgres psql -c "DROP OWNED BY $DB_USER;" 2>/dev/null || true
+        
+        # Удаляем пользователя
+        sudo -u postgres psql -c "DROP USER $DB_USER;" 2>/dev/null || true
+        sleep 2
+    fi
+    
     sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    
+    # Создаем пользователя заново
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    else
+        print_warning "Пользователь $DB_USER все еще существует, обновляем пароль..."
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    fi
     sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
     

@@ -53,7 +53,32 @@ print_success "PostgreSQL запущен и доступен"
 
 # Удаляем пользователя если существует (для пересоздания)
 print_status "Удаляем существующего пользователя $DB_USER (если есть)..."
-sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
+
+# Проверяем, существует ли пользователь
+if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    print_status "Пользователь $DB_USER существует, удаляем..."
+    
+    # Завершаем все активные сессии пользователя
+    sudo -u postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '$DB_USER';" 2>/dev/null || true
+    sleep 1
+    
+    # Удаляем все объекты, принадлежащие пользователю
+    sudo -u postgres psql -c "REASSIGN OWNED BY $DB_USER TO postgres;" 2>/dev/null || true
+    sudo -u postgres psql -c "DROP OWNED BY $DB_USER;" 2>/dev/null || true
+    
+    # Удаляем пользователя
+    sudo -u postgres psql -c "DROP USER $DB_USER;" 2>/dev/null || true
+    sleep 2
+    
+    # Проверяем, что пользователь действительно удален
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+        print_warning "Не удалось удалить пользователя $DB_USER, продолжаем с существующим..."
+    else
+        print_status "Пользователь $DB_USER успешно удален"
+    fi
+else
+    print_status "Пользователь $DB_USER не существует"
+fi
 
 # Удаляем базу данных если существует (для пересоздания)
 print_status "Удаляем существующую базу данных $DB_NAME (если есть)..."
@@ -61,7 +86,13 @@ sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
 
 # Создаем пользователя заново
 print_status "Создаем пользователя базы данных: $DB_USER"
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+    print_status "Пользователь $DB_USER создан"
+else
+    print_status "Пользователь $DB_USER уже существует, обновляем пароль..."
+    sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+fi
 
 # Создаем базу данных заново
 print_status "Создаем базу данных: $DB_NAME"

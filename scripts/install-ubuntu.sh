@@ -1247,7 +1247,6 @@ main() {
     verify_dependencies
     
     # Configuration
-    configure_postgresql
     configure_redis
     
     # Project setup
