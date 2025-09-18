@@ -15,14 +15,20 @@ from django.conf import settings
 
 from app.models.ticket import Ticket, TicketComment, TicketAttachment
 from app.models.tenant import User, Tenant
-from .serializers import (
-    TicketSerializer,
+from app.models.knowledge import KnowledgeArticle, KnowledgeCategory
+
+# Импортируем конкретные модули сериализаторов и алиасим нужные классы
+from app.api.serializers.ticket import (
+    TicketDetailSerializer as TicketSerializer,
     TicketCommentSerializer,
     TicketAttachmentSerializer,
-    UserSerializer,
+)
+from app.api.serializers.auth import (
+    UserProfileSerializer as UserSerializer,
     TenantSerializer,
-    # Добавляем, т.к. используются ниже
-    KnowledgeArticleSerializer,
+)
+from app.api.serializers.knowledge import (
+    KnowledgeArticleDetailSerializer as KnowledgeArticleSerializer,
     KnowledgeCategorySerializer,
 )
 

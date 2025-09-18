@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Function to print colored output
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[ИНФО]${NC} $1"
 }
 
 print_success() {
@@ -22,11 +22,11 @@ print_success() {
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[ВНИМАНИЕ]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ОШИБКА]${NC} $1"
 }
 
 # Function to check if Docker is installed
@@ -81,7 +81,7 @@ build_images() {
 
 # Function to start services
 start_services() {
-    print_status "Starting services..."
+    print_status "Запускаем сервисы..."
     
     # Start database and cache first
     docker-compose up -d db redis
@@ -100,7 +100,7 @@ start_services() {
     # Start remaining services
     docker-compose up -d
     
-    print_success "All services started successfully"
+    print_success "Все сервисы успешно запущены"
 }
 
 # Function to run database migrations
@@ -159,7 +159,7 @@ collect_static() {
 
 # Function to show service status
 show_status() {
-    print_status "Service status:"
+    print_status "Статус сервисов:"
     docker-compose ps
 }
 
@@ -171,14 +171,14 @@ show_logs() {
 
 # Function to stop services
 stop_services() {
-    print_status "Stopping services..."
+    print_status "Останавливаем сервисы..."
     docker-compose down
     print_success "Services stopped successfully"
 }
 
 # Function to restart services
 restart_services() {
-    print_status "Restarting services..."
+    print_status "Перезапускаем сервисы..."
     docker-compose restart
     print_success "Services restarted successfully"
 }
@@ -190,10 +190,10 @@ show_help() {
     echo "Usage: $0 [COMMAND]"
     echo
     echo "Commands:"
-    echo "  start     Start all services"
-    echo "  stop      Stop all services"
-    echo "  restart   Restart all services"
-    echo "  status    Show service status"
+    echo "  start     Запустить все сервисы"
+    echo "  stop      Остановить все сервисы"
+    echo "  restart   Перезапустить все сервисы"
+    echo "  status    Показать статус сервисов"
     echo "  logs      Show logs"
     echo "  build     Build Docker images"
     echo "  migrate   Run database migrations"
@@ -226,8 +226,8 @@ show_final_info() {
     echo
     echo "=== Management Commands ==="
     echo "View logs: $0 logs"
-    echo "Check status: $0 status"
-    echo "Restart: $0 restart"
+    echo "Проверка статуса: $0 status"
+    echo "Перезапуск: $0 restart"
     echo "Stop: $0 stop"
     echo
 }
