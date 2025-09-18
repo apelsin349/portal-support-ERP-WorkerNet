@@ -54,15 +54,22 @@ fi
 # Настраиваем пароль для Redis
 print_status "Настраиваем пароль для Redis..."
 
-# Создаем резервную копию конфигурации
-sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup
+# Создаем резервную копию конфигурации (если файл существует)
+if [ -f "/etc/redis/redis.conf" ]; then
+    sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup 2>/dev/null || true
+fi
 
 # Добавляем пароль в конфигурацию
-if ! sudo grep -q "requirepass" /etc/redis/redis.conf; then
-    echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf
-    print_success "Пароль добавлен в конфигурацию Redis"
+if [ -f "/etc/redis/redis.conf" ]; then
+    if ! sudo grep -q "requirepass" /etc/redis/redis.conf 2>/dev/null; then
+        echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf >/dev/null 2>&1
+        print_success "Пароль добавлен в конфигурацию Redis"
+    else
+        print_warning "Пароль уже настроен в Redis"
+    fi
 else
-    print_warning "Пароль уже настроен в Redis"
+    print_warning "Файл конфигурации Redis не найден: /etc/redis/redis.conf"
+    print_status "Пропускаем настройку пароля Redis"
 fi
 
 # Перезапускаем Redis для применения изменений

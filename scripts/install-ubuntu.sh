@@ -484,20 +484,33 @@ configure_postgresql() {
 configure_redis() {
     print_status "Настраиваем Redis..."
     
+    # Проверяем, существует ли файл конфигурации Redis
+    if [ ! -f "/etc/redis/redis.conf" ]; then
+        print_warning "Файл конфигурации Redis не найден: /etc/redis/redis.conf"
+        print_status "Пропускаем настройку Redis конфигурации"
+        return 0
+    fi
+    
     # Set password for Redis (robust replace or append)
-    sudo sed -i "s/^[#[:space:]]*requirepass .*/requirepass ${WORKERNET_REDIS_PASS}/" /etc/redis/redis.conf || true
-    sudo grep -q "^requirepass" /etc/redis/redis.conf || echo "requirepass ${WORKERNET_REDIS_PASS}" | sudo tee -a /etc/redis/redis.conf >/dev/null
+    sudo sed -i "s/^[#[:space:]]*requirepass .*/requirepass ${WORKERNET_REDIS_PASS}/" /etc/redis/redis.conf 2>/dev/null || true
+    if ! sudo grep -q "^requirepass" /etc/redis/redis.conf 2>/dev/null; then
+        echo "requirepass ${WORKERNET_REDIS_PASS}" | sudo tee -a /etc/redis/redis.conf >/dev/null 2>&1 || true
+    fi
     
     # Configure Redis for better performance (robust replace or append)
-    sudo sed -i "s/^[#[:space:]]*maxmemory .*/maxmemory 512mb/" /etc/redis/redis.conf || true
-    sudo grep -q "^maxmemory 512mb" /etc/redis/redis.conf || echo "maxmemory 512mb" | sudo tee -a /etc/redis/redis.conf >/dev/null
-    sudo sed -i "s/^[#[:space:]]*maxmemory-policy .*/maxmemory-policy allkeys-lru/" /etc/redis/redis.conf || true
-    sudo grep -q "^maxmemory-policy allkeys-lru" /etc/redis/redis.conf || echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf >/dev/null
+    sudo sed -i "s/^[#[:space:]]*maxmemory .*/maxmemory 512mb/" /etc/redis/redis.conf 2>/dev/null || true
+    if ! sudo grep -q "^maxmemory 512mb" /etc/redis/redis.conf 2>/dev/null; then
+        echo "maxmemory 512mb" | sudo tee -a /etc/redis/redis.conf >/dev/null 2>&1 || true
+    fi
+    sudo sed -i "s/^[#[:space:]]*maxmemory-policy .*/maxmemory-policy allkeys-lru/" /etc/redis/redis.conf 2>/dev/null || true
+    if ! sudo grep -q "^maxmemory-policy allkeys-lru" /etc/redis/redis.conf 2>/dev/null; then
+        echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf >/dev/null 2>&1 || true
+    fi
     
     # Restart Redis
-    sudo systemctl restart redis-server
+    sudo systemctl restart redis-server 2>/dev/null || true
     # Enable auto-start on boot
-    sudo systemctl enable redis-server || true
+    sudo systemctl enable redis-server 2>/dev/null || true
 
     print_success "Redis настроен"
 }
@@ -1005,9 +1018,16 @@ setup_redis() {
     
     # Настраиваем пароль для Redis
     REDIS_PASSWORD="redis123"
-    if ! sudo grep -q "requirepass" /etc/redis/redis.conf; then
-        echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf
-        sudo systemctl restart redis-server
+    
+    # Проверяем, существует ли файл конфигурации Redis
+    if [ -f "/etc/redis/redis.conf" ]; then
+        if ! sudo grep -q "requirepass" /etc/redis/redis.conf 2>/dev/null; then
+            echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf >/dev/null 2>&1
+            sudo systemctl restart redis-server 2>/dev/null || true
+        fi
+    else
+        print_warning "Файл конфигурации Redis не найден: /etc/redis/redis.conf"
+        print_status "Пропускаем настройку пароля Redis"
     fi
     
     print_success "Redis настроен"
