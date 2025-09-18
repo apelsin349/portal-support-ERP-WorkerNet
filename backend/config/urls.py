@@ -17,7 +17,7 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # API v1
-    path('api/v1/', include('app.api.urls')),
+    path('api/v1/', include('app.api.urls.urls')),
     
     # Health check
     path('health/', include('django_prometheus.urls')),
