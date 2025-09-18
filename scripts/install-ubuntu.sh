@@ -1090,6 +1090,9 @@ EOF
     print_status "Выполняем миграции Django..."
     python manage.py migrate
     
+    print_status "Создаем папки для статических файлов..."
+    mkdir -p staticfiles media || true
+    
     print_status "Собираем статические файлы..."
     python manage.py collectstatic --noinput
     
