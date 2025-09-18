@@ -14,16 +14,22 @@ from django.utils import timezone
 from django.conf import settings
 
 from app.models.ticket import Ticket, TicketComment, TicketAttachment
-from app.models.knowledge import KnowledgeArticle, KnowledgeCategory
 from app.models.tenant import User, Tenant
 from .serializers import (
     TicketSerializer,
     TicketCommentSerializer,
     TicketAttachmentSerializer,
-    KnowledgeArticleSerializer,
-    KnowledgeCategorySerializer,
     UserSerializer,
     TenantSerializer,
+)
+
+# Импортируем новые представления
+from .views.ticket import TicketViewSet as NewTicketViewSet, TagViewSet, SLAViewSet
+from .views.auth import (
+    UserRegistrationView, UserLoginView, UserLogoutView,
+    UserProfileView, UserUpdateView, PasswordChangeView,
+    PasswordResetView, PasswordResetConfirmView, TenantListView,
+    UserListView, verify_email, user_permissions, refresh_token
 )
 
 
