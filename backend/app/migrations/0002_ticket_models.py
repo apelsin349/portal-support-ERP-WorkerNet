@@ -51,33 +51,64 @@ class Migration(migrations.Migration):
             ],
             database_operations=[],
         ),
-        # Ticket model
-        migrations.CreateModel(
-            name='Ticket',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('ticket_id', models.CharField(max_length=20, unique=True, verbose_name='ID тикета')),
-                ('title', models.CharField(max_length=255, verbose_name='Заголовок')),
-                ('description', models.TextField(verbose_name='Описание')),
-                ('priority', models.CharField(choices=[('low', 'Низкий'), ('medium', 'Средний'), ('high', 'Высокий'), ('urgent', 'Срочный'), ('critical', 'Критический')], default='medium', max_length=20, verbose_name='Приоритет')),
-                ('status', models.CharField(choices=[('open', 'Открыт'), ('in_progress', 'В работе'), ('pending', 'Ожидание'), ('resolved', 'Решён'), ('closed', 'Закрыт'), ('cancelled', 'Отменён')], default='open', max_length=20, verbose_name='Статус')),
-                ('category', models.CharField(choices=[('technical', 'Техническая'), ('billing', 'Биллинг'), ('general', 'Общая'), ('bug_report', 'Баг'), ('feature_request', 'Запрос фичи'), ('other', 'Другое')], default='general', max_length=20, verbose_name='Категория')),
-                ('sla_hours', models.IntegerField(default=24, verbose_name='SLA (часы)')),
-                ('due_date', models.DateTimeField(blank=True, null=True, verbose_name='Крайний срок')),
-                ('resolved_at', models.DateTimeField(blank=True, null=True, verbose_name='Время решения')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
-                ('custom_fields', models.JSONField(default=dict, verbose_name='Пользовательские поля')),
-                ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_tickets', to='app.user', verbose_name='Назначен')),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='created_tickets', to='app.user', verbose_name='Автор')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tickets', to='app.tenant', verbose_name='Арендатор')),
+        # Ticket model (safe create)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS tickets (
+                    id BIGSERIAL PRIMARY KEY,
+                    ticket_id VARCHAR(20) UNIQUE NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT NOT NULL,
+                    priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+                    status VARCHAR(20) NOT NULL DEFAULT 'open',
+                    category VARCHAR(20) NOT NULL DEFAULT 'general',
+                    sla_hours INTEGER NOT NULL DEFAULT 24,
+                    due_date TIMESTAMPTZ,
+                    resolved_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    custom_fields JSONB NOT NULL DEFAULT '{}'
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS tickets;
+                """
+            ),
+        ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='Ticket',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('ticket_id', models.CharField(max_length=20, unique=True, verbose_name='ID тикета')),
+                        ('title', models.CharField(max_length=255, verbose_name='Заголовок')),
+                        ('description', models.TextField(verbose_name='Описание')),
+                        ('priority', models.CharField(choices=[('low', 'Низкий'), ('medium', 'Средний'), ('high', 'Высокий'), ('urgent', 'Срочный'), ('critical', 'Критический')], default='medium', max_length=20, verbose_name='Приоритет')),
+                        ('status', models.CharField(choices=[('open', 'Открыт'), ('in_progress', 'В работе'), ('pending', 'Ожидание'), ('resolved', 'Решён'), ('closed', 'Закрыт'), ('cancelled', 'Отменён')], default='open', max_length=20, verbose_name='Статус')),
+                        ('category', models.CharField(choices=[('technical', 'Техническая'), ('billing', 'Биллинг'), ('general', 'Общая'), ('bug_report', 'Баг'), ('feature_request', 'Запрос фичи'), ('other', 'Другое')], default='general', max_length=20, verbose_name='Категория')),
+                        ('sla_hours', models.IntegerField(default=24, verbose_name='SLA (часы)')),
+                        ('due_date', models.DateTimeField(blank=True, null=True, verbose_name='Крайний срок')),
+                        ('resolved_at', models.DateTimeField(blank=True, null=True, verbose_name='Время решения')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+                        ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
+                        ('custom_fields', models.JSONField(default=dict, verbose_name='Пользовательские поля')),
+                        ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_tickets', to='app.user', verbose_name='Назначен')),
+                        ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='created_tickets', to='app.user', verbose_name='Автор')),
+                        ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tickets', to='app.tenant', verbose_name='Арендатор')),
+                    ],
+                    options={
+                        'verbose_name': 'Тикет',
+                        'verbose_name_plural': 'Тикеты',
+                        'db_table': 'tickets',
+                        'ordering': ['-created_at'],
+                    },
+                ),
             ],
-            options={
-                'verbose_name': 'Тикет',
-                'verbose_name_plural': 'Тикеты',
-                'db_table': 'tickets',
-                'ordering': ['-created_at'],
-            },
+            database_operations=[],
         ),
         # TicketComment model
         migrations.CreateModel(
