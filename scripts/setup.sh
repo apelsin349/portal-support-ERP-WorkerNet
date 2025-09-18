@@ -152,7 +152,7 @@ wait_for_services() {
     
     # Wait for PostgreSQL
     print_status "Waiting for PostgreSQL..."
-    until docker-compose exec -T postgres pg_isready -U workernet -d worker_net; do
+    until docker-compose exec -T postgres pg_isready -U workernet -d workernet; do
         sleep 2
     done
     print_status "PostgreSQL is ready ✓"

@@ -464,16 +464,16 @@ configure_postgresql() {
     fi
 
     # Create databases if not exist
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='worker_net'" | grep -q 1; then
-        sudo -u postgres createdb worker_net
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='workernet'" | grep -q 1; then
+        sudo -u postgres createdb workernet
     fi
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='worker_net_test'" | grep -q 1; then
-        sudo -u postgres createdb worker_net_test
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='workernet_test'" | grep -q 1; then
+        sudo -u postgres createdb workernet_test
     fi
 
     # Grants (idempotent)
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net TO workernet;" || true
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE worker_net_test TO workernet;" || true
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE workernet TO workernet;" || true
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE workernet_test TO workernet;" || true
     
     # Enable auto-start on boot
     sudo systemctl enable postgresql || true
@@ -641,6 +641,14 @@ setup_environment() {
     fi
     if grep -q "your-secure-password" .env; then
         sed -i "s|your-secure-password|${WORKERNET_DB_PASS}|" .env
+    fi
+    # Replace password placeholder in DATABASE_URL
+    if grep -q "password" .env; then
+        sed -i "s|password|${WORKERNET_DB_PASS}|" .env
+    fi
+    # Replace database name if needed
+    if grep -q "worker_net" .env; then
+        sed -i "s|worker_net|workernet|g" .env
     fi
 
     # Ensure required minimum set if keys were entirely absent
@@ -1053,8 +1061,8 @@ run_migrations() {
 SECRET_KEY=workernet-secret-key-2024-development-only
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
-DATABASE_URL=postgresql://workernet:workernet123@localhost:5432/workernet
-REDIS_URL=redis://:redis123@localhost:6379/0
+DATABASE_URL=postgresql://workernet:${WORKERNET_DB_PASS}@localhost:5432/workernet
+REDIS_URL=redis://:${WORKERNET_REDIS_PASS}@localhost:6379/0
 JWT_SECRET_KEY=workernet-jwt-secret-key-2024-development-only
 EOF
     fi

@@ -6,7 +6,7 @@ services:
     image: postgres:15-alpine
     container_name: workernet_db
     environment:
-      POSTGRES_DB: worker_net
+      POSTGRES_DB: workernet
       POSTGRES_USER: workernet
       POSTGRES_PASSWORD: ${DB_PASSWORD:-workernet123}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
@@ -19,7 +19,7 @@ services:
       - workernet_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workernet -d worker_net"]
+      test: ["CMD-SHELL", "pg_isready -U workernet -d workernet"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,7 +51,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
-      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/worker_net
+      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/workernet
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       - REDIS_CACHE_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
@@ -87,7 +87,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
-      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/worker_net
+      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/workernet
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
@@ -111,7 +111,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
-      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/worker_net
+      - DATABASE_URL=postgresql://workernet:${DB_PASSWORD:-workernet123}@db:5432/workernet
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
