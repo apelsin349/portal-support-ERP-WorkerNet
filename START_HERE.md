@@ -21,6 +21,29 @@ chmod +x scripts/*.sh
 ./scripts/start-docker.sh start
 ```
 
+> Если получаете «Permission denied» при запуске скриптов, выполните:
+
+```bash
+chmod +x scripts/install-ubuntu.sh scripts/quick-update.sh
+bash scripts/install-ubuntu.sh
+bash scripts/quick-update.sh
+
+# Частые операции, требующие прав sudo
+sudo systemctl restart workernet-backend workernet-frontend
+sudo journalctl -u workernet-backend -f
+
+# Папки для статики/медиа
+sudo mkdir -p backend/staticfiles backend/media
+sudo chown -R "$USER":"$USER" backend/staticfiles backend/media
+
+# PostgreSQL
+sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD 'workernet123';"
+
+# Redis
+echo "requirepass redis123" | sudo tee -a /etc/redis/redis.conf
+sudo systemctl restart redis
+```
+
 ### 3. Доступ к приложению
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:8000

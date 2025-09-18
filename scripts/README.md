@@ -76,6 +76,37 @@ WORKERNET_SELF_UPDATE=1 ./scripts/quick-update.sh
 # Если получаете "Permission denied"
 chmod +x scripts/quick-update.sh scripts/install-ubuntu.sh
 # или запускайте так
+# Дополнительно: частые кейсы с правами
+
+Сервисы и логи:
+
+```bash
+sudo systemctl restart workernet-backend workernet-frontend
+sudo systemctl status workernet-backend workernet-frontend
+sudo journalctl -u workernet-backend -f
+sudo journalctl -u workernet-frontend -f
+```
+
+Папки статики/медиа:
+
+```bash
+sudo mkdir -p backend/staticfiles backend/media
+sudo chown -R "$USER":"$USER" backend/staticfiles backend/media
+sudo chmod -R u+rwX backend/staticfiles backend/media
+```
+
+Redis/Nginx/systemd:
+
+```bash
+echo "requirepass redis123" | sudo tee -a /etc/redis/redis.conf
+sudo systemctl daemon-reload && sudo systemctl restart redis
+```
+
+PostgreSQL:
+
+```bash
+sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD 'workernet123';"
+```
 bash scripts/quick-update.sh
 bash scripts/install-ubuntu.sh
 ```

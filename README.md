@@ -2268,6 +2268,45 @@ bash scripts/quick-update.sh
 bash scripts/install-ubuntu.sh
 ```
 
+Дополнительно при других операциях с правами:
+
+Сервисы и логи systemd:
+
+```bash
+sudo systemctl restart workernet-backend workernet-frontend
+sudo systemctl status workernet-backend workernet-frontend
+sudo journalctl -u workernet-backend -f
+sudo journalctl -u workernet-frontend -f
+```
+
+Папки static/media (если collectstatic падает с Permission denied):
+
+```bash
+sudo mkdir -p backend/staticfiles backend/media
+sudo chown -R "$USER":"$USER" backend/staticfiles backend/media
+sudo chmod -R u+rwX backend/staticfiles backend/media
+```
+
+Редактирование системных файлов (redis/nginx/systemd):
+
+```bash
+echo "requirepass redis123" | sudo tee -a /etc/redis/redis.conf
+sudo cp workernet-backend.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl restart redis
+```
+
+PostgreSQL под пользователем postgres:
+
+```bash
+sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD 'workernet123';"
+```
+
+Права на каталог проекта:
+
+```bash
+sudo chown -R "$USER":"$USER" /home/worker/portal-support-ERP-WorkerNet
+```
+
 **Мобильное приложение:**
 - **Android**: Запуск через Android Studio или `npx react-native run-android`
 - **iOS**: Запуск через Xcode или `npx react-native run-ios`
