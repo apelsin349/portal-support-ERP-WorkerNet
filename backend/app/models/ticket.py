@@ -8,6 +8,9 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 User = get_user_model()
 
+# Импортируем Tenant для использования в ForeignKey
+from .tenant import Tenant
+
 
 class Ticket(models.Model):
     """Модель тикета службы поддержки."""
