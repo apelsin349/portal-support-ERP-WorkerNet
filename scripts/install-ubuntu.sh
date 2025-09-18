@@ -779,9 +779,6 @@ setup_nodejs_env() {
         npm config set proxy "${HTTP_PROXY:-${http_proxy}}" >/dev/null 2>&1 || true
     fi
 
-    INSTALL_CMD="npm install --omit=optional"
-    [ -f package-lock.json ] && INSTALL_CMD="npm ci --omit=optional"
-
     # Проверка кэша; если повреждён — очищаем принудительно
     npm cache verify >/dev/null 2>&1 || npm cache clean --force >/dev/null 2>&1 || true
 
@@ -794,14 +791,29 @@ setup_nodejs_env() {
     INSTALL_OK=false
     for REG in "${REGISTRIES[@]}"; do
         npm config set registry "$REG" >/dev/null 2>&1 || true
+        
+        # Сначала пробуем npm install для обновления package-lock.json
         for ATTEMPT in 1 2 3; do
-            echo "Попытка $ATTEMPT с реестром: $REG"
-            if $INSTALL_CMD; then
+            echo "Попытка $ATTEMPT с реестром: $REG (npm install)"
+            if npm install --omit=optional; then
                 INSTALL_OK=true
                 break
             fi
             sleep $((ATTEMPT * 2))
         done
+        
+        # Если npm install не сработал, пробуем npm ci (если package-lock.json существует)
+        if [ "$INSTALL_OK" != true ] && [ -f package-lock.json ]; then
+            for ATTEMPT in 1 2 3; do
+                echo "Попытка $ATTEMPT с реестром: $REG (npm ci)"
+                if npm ci --omit=optional; then
+                    INSTALL_OK=true
+                    break
+                fi
+                sleep $((ATTEMPT * 2))
+            done
+        fi
+        
         [ "$INSTALL_OK" = true ] && break
     done
 
