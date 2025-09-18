@@ -609,12 +609,14 @@ setup_environment() {
         cp -f .env .env.bak.$(date +%Y%m%d%H%M%S)
     fi
 
-    # Create .env from example if missing
-    if [ ! -f .env ]; then
+    # Create .env from example if missing or if it contains old paths
+    if [ ! -f .env ] || grep -q "/app/static\|/app/media" .env; then
         if [ -f env.example ]; then
             cp env.example .env
+            print_status "Обновлен .env из env.example (исправлены пути для статических файлов)"
         elif [ -f .env.example ]; then
             cp .env.example .env
+            print_status "Обновлен .env из .env.example (исправлены пути для статических файлов)"
         else
             print_error "env.example не найден; невозможно создать .env"
             exit 1
@@ -649,6 +651,14 @@ setup_environment() {
     # Replace database name if needed
     if grep -q "worker_net" .env; then
         sed -i "s|worker_net|workernet|g" .env
+    fi
+    
+    # Fix static files paths to use relative paths
+    if grep -q "/app/static" .env; then
+        sed -i "s|/app/static|./staticfiles|g" .env
+    fi
+    if grep -q "/app/media" .env; then
+        sed -i "s|/app/media|./media|g" .env
     fi
 
     # Ensure required minimum set if keys were entirely absent

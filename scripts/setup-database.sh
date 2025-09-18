@@ -146,9 +146,9 @@ DEFAULT_FROM_EMAIL=WorkerNet Portal <noreply@workernet.com>
 
 # File Storage
 DEFAULT_FILE_STORAGE=django.core.files.storage.FileSystemStorage
-MEDIA_ROOT=/app/media
+MEDIA_ROOT=./media
 MEDIA_URL=/media/
-STATIC_ROOT=/app/static
+STATIC_ROOT=./staticfiles
 STATIC_URL=/static/
 
 # Security
