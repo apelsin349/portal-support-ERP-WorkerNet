@@ -864,6 +864,60 @@ setup_nodejs_env() {
     print_success "Окружение Node.js настроено"
 }
 
+# Настройка базы данных
+setup_database() {
+    print_status "Настраиваем базу данных PostgreSQL..."
+    
+    # Проверяем, запущен ли PostgreSQL
+    if ! systemctl is-active --quiet postgresql; then
+        print_status "Запускаем PostgreSQL..."
+        sudo systemctl start postgresql
+        sudo systemctl enable postgresql
+    fi
+    
+    # Создаем пользователя и базу данных
+    DB_USER="workernet"
+    DB_PASSWORD="workernet123"
+    DB_NAME="workernet"
+    
+    print_status "Создаем пользователя базы данных: $DB_USER"
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null || {
+        print_warning "Пользователь $DB_USER уже существует, обновляем пароль..."
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+    }
+    
+    print_status "Создаем базу данных: $DB_NAME"
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || {
+        print_warning "База данных $DB_NAME уже существует"
+    }
+    
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;"
+    
+    print_success "База данных настроена"
+}
+
+# Настройка Redis
+setup_redis() {
+    print_status "Настраиваем Redis..."
+    
+    # Проверяем, запущен ли Redis
+    if ! systemctl is-active --quiet redis-server; then
+        print_status "Запускаем Redis..."
+        sudo systemctl start redis-server
+        sudo systemctl enable redis-server
+    fi
+    
+    # Настраиваем пароль для Redis
+    REDIS_PASSWORD="redis123"
+    if ! grep -q "requirepass" /etc/redis/redis.conf; then
+        echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf
+        sudo systemctl restart redis-server
+    fi
+    
+    print_success "Redis настроен"
+}
+
 # Применение миграций базы данных
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
@@ -876,6 +930,20 @@ run_migrations() {
     
     cd "$WORKERNET_ROOT/backend"
     source venv/bin/activate
+    
+    # Создаем .env файл если его нет
+    if [ ! -f ".env" ]; then
+        print_status "Создаем файл .env..."
+        cat > .env << EOF
+SECRET_KEY=workernet-secret-key-2024-development-only
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+DATABASE_URL=postgresql://workernet:workernet123@localhost:5432/workernet
+REDIS_URL=redis://:redis123@localhost:6379/0
+JWT_SECRET_KEY=workernet-jwt-secret-key-2024-development-only
+EOF
+    fi
+    
     python manage.py migrate
     python manage.py collectstatic --noinput
     
@@ -1076,6 +1144,11 @@ main() {
     mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
     setup_python_env
     setup_nodejs_env
+    
+    # Database and Redis setup
+    setup_database
+    setup_redis
+    
     run_migrations
     create_superuser
     
