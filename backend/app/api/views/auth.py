@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from app.models import User, Tenant
-from app.api.serializers.auth import (
+from app.api.serializers_auth import (
     UserRegistrationSerializer, UserLoginSerializer, CustomTokenObtainPairSerializer,
     UserProfileSerializer, UserUpdateSerializer, PasswordChangeSerializer,
     PasswordResetSerializer, PasswordResetConfirmSerializer, TenantSerializer,

@@ -1,3 +1,6 @@
+# Tooling (pin to avoid pkg_resources deprecation warnings)
+setuptools<81
+
 # Core Django
 Django==4.2.7
 djangorestframework==3.14.0
