@@ -58,7 +58,7 @@ print_status "Настраиваем пароль для Redis..."
 sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup
 
 # Добавляем пароль в конфигурацию
-if ! grep -q "requirepass" /etc/redis/redis.conf; then
+if ! sudo grep -q "requirepass" /etc/redis/redis.conf; then
     echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf
     print_success "Пароль добавлен в конфигурацию Redis"
 else

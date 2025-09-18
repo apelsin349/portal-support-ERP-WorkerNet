@@ -1005,7 +1005,7 @@ setup_redis() {
     
     # Настраиваем пароль для Redis
     REDIS_PASSWORD="redis123"
-    if ! grep -q "requirepass" /etc/redis/redis.conf; then
+    if ! sudo grep -q "requirepass" /etc/redis/redis.conf; then
         echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf
         sudo systemctl restart redis-server
     fi
