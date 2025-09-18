@@ -921,21 +921,34 @@ setup_database() {
     
     # Удаляем пользователя если существует (для пересоздания)
     print_status "Удаляем существующего пользователя $DB_USER (если есть)..."
+    # Сначала завершаем все активные сессии пользователя
+    sudo -u postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '$DB_USER';" 2>/dev/null || true
+    # Затем удаляем пользователя
     sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
     # Ждем немного, чтобы PostgreSQL обработал удаление
-    sleep 1
+    sleep 2
     
     # Удаляем базу данных если существует (для пересоздания)
     print_status "Удаляем существующую базу данных $DB_NAME (если есть)..."
     sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
     
-    # Создаем пользователя заново
+    # Создаем пользователя заново (с проверкой на существование)
     print_status "Создаем пользователя базы данных: $DB_USER"
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    else
+        print_status "Пользователь $DB_USER уже существует, обновляем пароль..."
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    fi
     
-    # Создаем базу данных заново
+    # Создаем базу данных заново (с проверкой на существование)
     print_status "Создаем базу данных: $DB_NAME"
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    else
+        print_status "База данных $DB_NAME уже существует, обновляем владельца..."
+        sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;"
+    fi
     
     # Предоставляем права
     print_status "Предоставляем права пользователю $DB_USER"
