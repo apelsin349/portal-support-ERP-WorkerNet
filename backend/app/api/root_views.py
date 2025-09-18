@@ -21,15 +21,9 @@ from .serializers import (
     TicketAttachmentSerializer,
     UserSerializer,
     TenantSerializer,
-)
-
-# Импортируем новые представления
-from .views.ticket import TicketViewSet as NewTicketViewSet, TagViewSet, SLAViewSet
-from .views.auth import (
-    UserRegistrationView, UserLoginView, UserLogoutView,
-    UserProfileView, UserUpdateView, PasswordChangeView,
-    PasswordResetView, PasswordResetConfirmView, TenantListView,
-    UserListView, verify_email, user_permissions, refresh_token
+    # Добавляем, т.к. используются ниже
+    KnowledgeArticleSerializer,
+    KnowledgeCategorySerializer,
 )
 
 
@@ -314,3 +308,5 @@ class HealthView(APIView):
             health_data['status'] = 'unhealthy'
         
         return Response(health_data)
+
+

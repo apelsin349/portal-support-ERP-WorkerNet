@@ -8,7 +8,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
-from .views import (
+from .root_views import (
     TicketViewSet,
     UserViewSet,
     TenantViewSet,
