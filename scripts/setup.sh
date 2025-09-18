@@ -183,7 +183,7 @@ wait_for_services() {
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
     
-    docker-compose exec backend python manage.py migrate
+    docker-compose exec backend python manage.py migrate --fake-initial
     
     print_status "Миграции выполнены ✓"
 }

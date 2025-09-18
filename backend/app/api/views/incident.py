@@ -34,10 +34,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
     queryset = Incident.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['severity', 'status', 'priority', 'reporter', 'assignee']
+    filterset_fields = ['severity', 'status', 'category', 'reported_by', 'assigned_to']
     search_fields = ['title', 'description']
-    ordering_fields = ['reported_at', 'resolved_at', 'created_at', 'severity', 'priority']
-    ordering = ['-reported_at']
+    ordering_fields = ['detected_at', 'resolved_at', 'created_at', 'severity']
+    ordering = ['-detected_at']
     
     def get_queryset(self):
         """Фильтрация по арендатору."""
@@ -61,10 +61,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
         # Создаем запись в временной шкале
         IncidentTimeline.objects.create(
             incident=incident,
-            user=self.request.user,
-            action='created',
+            author=self.request.user,
+            event_type='created',
             description='Инцидент создан',
-            tenant=self.request.user.tenant
+            metadata={},
         )
     
     def perform_update(self, serializer):
@@ -74,7 +74,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         
         # Создаем запись в временной шкале для изменений
         changes = []
-        for field in ['title', 'description', 'severity', 'status', 'priority', 'assignee']:
+        for field in ['title', 'description', 'severity', 'status', 'category', 'assigned_to']:
             old_value = getattr(old_instance, field)
             new_value = getattr(incident, field)
             if old_value != new_value:
@@ -83,10 +83,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if changes:
             IncidentTimeline.objects.create(
                 incident=incident,
-                user=self.request.user,
-                action='updated',
+                author=self.request.user,
+                event_type='status_changed',
                 description=f"Инцидент обновлен: {', '.join(changes)}",
-                tenant=self.request.user.tenant
+                metadata={},
             )
     
     @action(detail=True, methods=['post'])
@@ -104,10 +104,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
             # Создаем запись в временной шкале
             IncidentTimeline.objects.create(
                 incident=incident,
-                user=request.user,
-                action='update_added',
+                author=request.user,
+                event_type='created',
                 description=f"Добавлено обновление: {update.title}",
-                tenant=request.user.tenant
+                metadata={},
             )
             
             return Response(
@@ -165,17 +165,17 @@ class IncidentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        old_assignee = incident.assignee
-        incident.assignee = assignee
-        incident.save(update_fields=['assignee'])
+        old_assignee = incident.assigned_to
+        incident.assigned_to = assignee
+        incident.save(update_fields=['assigned_to'])
         
         # Создаем запись в временной шкале
         IncidentTimeline.objects.create(
             incident=incident,
-            user=request.user,
-            action='assigned',
+            author=request.user,
+            event_type='assigned',
             description=f"Инцидент назначен: {old_assignee} → {assignee}",
-            tenant=request.user.tenant
+            metadata={},
         )
         
         return Response({'message': 'Инцидент назначен'})
@@ -198,10 +198,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
         # Создаем запись в временной шкале
         IncidentTimeline.objects.create(
             incident=incident,
-            user=request.user,
-            action='resolved',
+            author=request.user,
+            event_type='resolved',
             description='Инцидент решен',
-            tenant=request.user.tenant
+            metadata={},
         )
         
         return Response({'message': 'Инцидент решен'})
@@ -223,10 +223,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
         # Создаем запись в временной шкале
         IncidentTimeline.objects.create(
             incident=incident,
-            user=request.user,
-            action='closed',
+            author=request.user,
+            event_type='closed',
             description='Инцидент закрыт',
-            tenant=request.user.tenant
+            metadata={},
         )
         
         return Response({'message': 'Инцидент закрыт'})
@@ -258,23 +258,23 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if data.get('status'):
             incidents = incidents.filter(status=data['status'])
         
-        if data.get('priority'):
-            incidents = incidents.filter(priority=data['priority'])
+        if data.get('category'):
+            incidents = incidents.filter(category=data['category'])
         
         if data.get('assignee'):
-            incidents = incidents.filter(assignee=data['assignee'])
+            incidents = incidents.filter(assigned_to=data['assignee'])
         
         if data.get('reporter'):
-            incidents = incidents.filter(reporter=data['reporter'])
+            incidents = incidents.filter(reported_by=data['reporter'])
         
         if data.get('date_from'):
-            incidents = incidents.filter(reported_at__gte=data['date_from'])
+            incidents = incidents.filter(detected_at__gte=data['date_from'])
         
         if data.get('date_to'):
-            incidents = incidents.filter(reported_at__lte=data['date_to'])
+            incidents = incidents.filter(detected_at__lte=data['date_to'])
         
         # Сортировка
-        incidents = incidents.order_by('-reported_at')
+        incidents = incidents.order_by('-detected_at')
         
         # Пагинация
         paginator = PageNumberPagination()
@@ -305,8 +305,8 @@ class IncidentViewSet(viewsets.ModelViewSet):
         ).annotate(count=Count('id')).order_by('-count')
         
         # Статистика по приоритету
-        incidents_by_priority = Incident.objects.filter(tenant=tenant).values(
-            'priority'
+        incidents_by_category = Incident.objects.filter(tenant=tenant).values(
+            'category'
         ).annotate(count=Count('id')).order_by('-count')
         
         # Среднее время решения
@@ -320,7 +320,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if resolved_incidents_with_time.exists():
             total_time = 0
             for incident in resolved_incidents_with_time:
-                time_diff = incident.resolved_at - incident.reported_at
+                time_diff = incident.resolved_at - incident.detected_at
                 total_time += time_diff.total_seconds() / 3600  # в часах
             average_resolution_time = total_time / resolved_incidents_with_time.count()
         
@@ -331,7 +331,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
             if incidents.exists():
                 total_time = 0
                 for incident in incidents:
-                    time_diff = incident.resolved_at - incident.reported_at
+                    time_diff = incident.resolved_at - incident.detected_at
                     total_time += time_diff.total_seconds() / 3600
                 resolution_time_by_severity[severity] = total_time / incidents.count()
             else:
@@ -348,7 +348,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         # Недавние инциденты
         recent_incidents = Incident.objects.filter(
             tenant=tenant
-        ).order_by('-reported_at')[:10]
+        ).order_by('-detected_at')[:10]
         
         stats_data = {
             'total_incidents': total_incidents,
@@ -357,7 +357,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
             'closed_incidents': closed_incidents,
             'incidents_by_severity': dict(incidents_by_severity),
             'incidents_by_status': dict(incidents_by_status),
-            'incidents_by_priority': dict(incidents_by_priority),
+            'incidents_by_category': dict(incidents_by_category),
             'average_resolution_time': round(average_resolution_time, 2),
             'resolution_time_by_severity': resolution_time_by_severity,
             'top_assignees': list(top_assignees),
@@ -395,7 +395,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         # Фильтруем инциденты по периоду
         incidents = Incident.objects.filter(
             tenant=tenant,
-            reported_at__date__range=[period_start, period_end]
+            detected_at__date__range=[period_start, period_end]
         )
         
         # Общая статистика
@@ -421,7 +421,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if resolved_incidents.exists():
             total_time = 0
             for incident in resolved_incidents:
-                time_diff = incident.resolved_at - incident.reported_at
+                time_diff = incident.resolved_at - incident.detected_at
                 total_time += time_diff.total_seconds() / 3600
             resolution_times['average'] = total_time / resolved_incidents.count()
         else:
@@ -434,7 +434,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         ).count()
         
         # Топ инциденты
-        top_incidents = incidents.order_by('-reported_at')[:10]
+        top_incidents = incidents.order_by('-detected_at')[:10]
         
         # Рекомендации
         recommendations = []
@@ -470,8 +470,8 @@ class IncidentViewSet(viewsets.ModelViewSet):
         
         # Инциденты, где пользователь является репортером или исполнителем
         incidents = self.get_queryset().filter(
-            Q(reporter=user) | Q(assignee=user)
-        ).order_by('-reported_at')
+            Q(reported_by=user) | Q(assigned_to=user)
+        ).order_by('-detected_at')
         
         serializer = IncidentListSerializer(incidents, many=True)
         return Response(serializer.data)
@@ -480,9 +480,9 @@ class IncidentViewSet(viewsets.ModelViewSet):
     def urgent(self, request):
         """Срочные инциденты."""
         incidents = self.get_queryset().filter(
-            Q(severity='critical') | Q(priority='high'),
-            status__in=['open', 'in_progress']
-        ).order_by('-reported_at')
+            Q(severity__in=['P1', 'P2']) | Q(category='security'),
+            status__in=['open', 'investigating']
+        ).order_by('-detected_at')
         
         serializer = IncidentListSerializer(incidents, many=True)
         return Response(serializer.data)

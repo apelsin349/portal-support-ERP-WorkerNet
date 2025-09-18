@@ -1146,7 +1146,7 @@ EOF
     
     # Выполняем миграции
     print_status "Выполняем миграции Django..."
-    python manage.py migrate
+    python manage.py migrate --fake-initial
     
     print_status "Создаем папки для статических файлов..."
     mkdir -p staticfiles media || true
@@ -1534,7 +1534,7 @@ update_installation() {
         print_status "Выполняем миграции базы данных..."
         cd "$WORKERNET_ROOT/backend"
         source venv/bin/activate
-        python manage.py migrate
+        python manage.py migrate --fake-initial
         python manage.py collectstatic --noinput
         print_success "Миграции выполнены"
     fi

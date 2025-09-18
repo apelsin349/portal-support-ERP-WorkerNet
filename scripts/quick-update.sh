@@ -220,7 +220,7 @@ run_migrations() {
         fi
         
         if command -v python >/dev/null 2>&1; then
-            python manage.py migrate || { print_error "Ошибка выполнения миграций"; return 1; }
+            python manage.py migrate --fake-initial || { print_error "Ошибка выполнения миграций"; return 1; }
             python manage.py collectstatic --noinput || true
             print_success "Миграции выполнены"
         else
