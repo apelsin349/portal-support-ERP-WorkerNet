@@ -779,8 +779,24 @@ setup_nodejs_env() {
         npm config set proxy "${HTTP_PROXY:-${http_proxy}}" >/dev/null 2>&1 || true
     fi
 
-    # Проверка кэша; если повреждён — очищаем принудительно
-    npm cache verify >/dev/null 2>&1 || npm cache clean --force >/dev/null 2>&1 || true
+    # АГРЕССИВНАЯ очистка кэша при проблемах с integrity
+    print_status "Проверяем и очищаем npm кэш..."
+    npm cache verify >/dev/null 2>&1 || {
+        print_warning "Кэш npm поврежден, выполняем агрессивную очистку..."
+        npm cache clean --force >/dev/null 2>&1 || true
+        rm -rf ~/.npm >/dev/null 2>&1 || true
+        rm -rf /tmp/npm-* >/dev/null 2>&1 || true
+    }
+
+    # Удаляем проблемные lock файлы
+    if [ -f package-lock.json ]; then
+        print_status "Проверяем package-lock.json на синхронизацию..."
+        # Простая проверка - если файл слишком маленький, он поврежден
+        if [ $(wc -c < package-lock.json) -lt 1000 ]; then
+            print_warning "package-lock.json поврежден, удаляем..."
+            rm -f package-lock.json
+        fi
+    fi
 
     # Последовательно пробуем реестры с повторами
     REGISTRIES=(
@@ -792,26 +808,50 @@ setup_nodejs_env() {
     for REG in "${REGISTRIES[@]}"; do
         npm config set registry "$REG" >/dev/null 2>&1 || true
         
-        # Сначала пробуем npm install для обновления package-lock.json
-        for ATTEMPT in 1 2 3; do
-            echo "Попытка $ATTEMPT с реестром: $REG (npm install)"
-            if npm install --omit=optional; then
-                INSTALL_OK=true
-                break
-            fi
-            sleep $((ATTEMPT * 2))
-        done
-        
-        # Если npm install не сработал, пробуем npm ci (если package-lock.json существует)
-        if [ "$INSTALL_OK" != true ] && [ -f package-lock.json ]; then
+        # Стратегия 1: npm install без lock файла
+        if [ ! -f package-lock.json ]; then
             for ATTEMPT in 1 2 3; do
-                echo "Попытка $ATTEMPT с реестром: $REG (npm ci)"
-                if npm ci --omit=optional; then
+                echo "Попытка $ATTEMPT с реестром: $REG (npm install без lock)"
+                if npm install --omit=optional --no-audit --no-fund; then
                     INSTALL_OK=true
                     break
                 fi
                 sleep $((ATTEMPT * 2))
             done
+        fi
+        
+        # Стратегия 2: npm install с принудительным обновлением
+        if [ "$INSTALL_OK" != true ]; then
+            for ATTEMPT in 1 2 3; do
+                echo "Попытка $ATTEMPT с реестром: $REG (npm install принудительно)"
+                if npm install --omit=optional --no-audit --no-fund --force; then
+                    INSTALL_OK=true
+                    break
+                fi
+                sleep $((ATTEMPT * 2))
+            done
+        fi
+        
+        # Стратегия 3: npm ci (только если lock файл существует и синхронизирован)
+        if [ "$INSTALL_OK" != true ] && [ -f package-lock.json ]; then
+            for ATTEMPT in 1 2 3; do
+                echo "Попытка $ATTEMPT с реестром: $REG (npm ci)"
+                if npm ci --omit=optional --no-audit --no-fund; then
+                    INSTALL_OK=true
+                    break
+                fi
+                sleep $((ATTEMPT * 2))
+            done
+        fi
+        
+        # Стратегия 4: Минимальная установка без lock файла
+        if [ "$INSTALL_OK" != true ]; then
+            print_warning "Все стратегии не сработали, пробуем минимальную установку..."
+            rm -f package-lock.json >/dev/null 2>&1 || true
+            rm -rf node_modules >/dev/null 2>&1 || true
+            if npm install --omit=optional --no-audit --no-fund --no-package-lock; then
+                INSTALL_OK=true
+            fi
         fi
         
         [ "$INSTALL_OK" = true ] && break
