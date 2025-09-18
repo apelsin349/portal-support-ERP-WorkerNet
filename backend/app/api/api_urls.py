@@ -42,8 +42,8 @@ urlpatterns = [
     path("sla/", include("app.api.urls.sla")),
     # A/B Testing URLs
     path("ab-testing/", include("app.api.urls.ab_testing")),
-    # Incident Management URLs
-    path("incidents/", include("app.api.urls.incident")),
+    # Incident Management URLs (временно отключено до синхронизации моделей/сериализаторов)
+    # path("incidents/", include("app.api.urls.incident")),
     # Template URLs
     path("templates/", include("app.api.urls.template")),
     # Rating URLs
