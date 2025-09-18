@@ -1,0 +1,274 @@
+#!/bin/bash
+
+# Скрипт быстрого обновления WorkerNet Portal
+# Используется для быстрого обновления без полной переустановки
+
+set -e
+
+# Цвета для вывода
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # Без цвета
+
+# Функции для вывода
+print_status() {
+    echo -e "${BLUE}[ИНФО]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[УСПЕХ]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[ВНИМАНИЕ]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ОШИБКА]${NC} $1"
+}
+
+# Находим директорию проекта
+find_project_directory() {
+    if [ -d "/opt/workernet" ]; then
+        PROJECT_DIR="/opt/workernet"
+    elif [ -d "$HOME/portal-support-ERP-WorkerNet" ]; then
+        PROJECT_DIR="$HOME/portal-support-ERP-WorkerNet"
+    elif [ -d "$HOME/workernet-portal" ]; then
+        PROJECT_DIR="$HOME/workernet-portal"
+    else
+        print_error "Директория проекта не найдена"
+        print_status "Ищем в стандартных местах:"
+        print_status "- /opt/workernet"
+        print_status "- $HOME/portal-support-ERP-WorkerNet"
+        print_status "- $HOME/workernet-portal"
+        exit 1
+    fi
+    
+    print_status "Найдена директория проекта: $PROJECT_DIR"
+}
+
+# Проверка обновлений
+check_for_updates() {
+    print_status "Проверяем наличие обновлений..."
+    
+    cd "$PROJECT_DIR"
+    
+    # Получаем информацию о текущей ветке
+    CURRENT_BRANCH=$(git branch --show-current)
+    git fetch --all --prune
+    
+    # Проверяем наличие новых коммитов
+    LOCAL=$(git rev-parse HEAD)
+    REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH")
+    
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        print_success "Обновления не найдены - система актуальна"
+        return 1
+    else
+        print_warning "Найдены обновления"
+        print_status "Текущая версия: $LOCAL"
+        print_status "Новая версия: $REMOTE"
+        return 0
+    fi
+}
+
+# Остановка сервисов
+stop_services() {
+    print_status "Останавливаем сервисы..."
+    
+    sudo systemctl stop workernet-backend 2>/dev/null || true
+    sudo systemctl stop workernet-frontend 2>/dev/null || true
+    
+    print_success "Сервисы остановлены"
+}
+
+# Обновление кода
+update_code() {
+    print_status "Обновляем код из репозитория..."
+    
+    cd "$PROJECT_DIR"
+    
+    # Сохраняем локальные изменения
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        print_warning "Обнаружены локальные изменения"
+        git stash push -m "Auto-stash before update $(date)" || true
+    fi
+    
+    # Обновляем код
+    git fetch --all --prune
+    git reset --hard "origin/$(git branch --show-current)"
+    git submodule update --init --recursive 2>/dev/null || true
+    
+    print_success "Код обновлен"
+}
+
+# Обновление зависимостей Python
+update_python_deps() {
+    if [ -d "$PROJECT_DIR/backend" ] && [ -f "$PROJECT_DIR/backend/venv/bin/activate" ]; then
+        print_status "Обновляем зависимости Python..."
+        
+        cd "$PROJECT_DIR/backend"
+        source venv/bin/activate
+        
+        pip install -U pip setuptools wheel
+        pip install -r requirements.txt
+        if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+        fi
+        
+        print_success "Зависимости Python обновлены"
+    else
+        print_warning "Виртуальное окружение Python не найдено"
+    fi
+}
+
+# Обновление зависимостей Node.js
+update_nodejs_deps() {
+    if [ -d "$PROJECT_DIR/frontend" ]; then
+        print_status "Обновляем зависимости Node.js..."
+        
+        cd "$PROJECT_DIR/frontend"
+        npm update
+        
+        print_success "Зависимости Node.js обновлены"
+    else
+        print_warning "Директория frontend не найдена"
+    fi
+}
+
+# Выполнение миграций
+run_migrations() {
+    if [ -d "$PROJECT_DIR/backend" ] && [ -f "$PROJECT_DIR/backend/venv/bin/activate" ]; then
+        print_status "Выполняем миграции базы данных..."
+        
+        cd "$PROJECT_DIR/backend"
+        source venv/bin/activate
+        
+        python manage.py migrate
+        python manage.py collectstatic --noinput
+        
+        print_success "Миграции выполнены"
+    else
+        print_warning "Не удалось выполнить миграции - виртуальное окружение не найдено"
+    fi
+}
+
+# Запуск сервисов
+start_services() {
+    print_status "Запускаем сервисы..."
+    
+    sudo systemctl start workernet-backend
+    sudo systemctl start workernet-frontend
+    
+    # Ждем запуска сервисов
+    sleep 5
+    
+    # Проверяем статус
+    if systemctl is-active --quiet workernet-backend && systemctl is-active --quiet workernet-frontend; then
+        print_success "Сервисы запущены успешно"
+    else
+        print_error "Ошибка запуска сервисов"
+        print_status "Проверьте логи:"
+        print_status "sudo journalctl -u workernet-backend -f"
+        print_status "sudo journalctl -u workernet-frontend -f"
+        exit 1
+    fi
+}
+
+# Показ статуса
+show_status() {
+    echo
+    print_success "Обновление завершено!"
+    echo
+    echo "=== Статус сервисов ==="
+    sudo systemctl status workernet-backend --no-pager -l
+    sudo systemctl status workernet-frontend --no-pager -l
+    echo
+    echo "=== Доступ к сервисам ==="
+    echo "Фронтенд: http://localhost:3000"
+    echo "API: http://localhost:8000"
+    echo "Админ‑панель: http://localhost:8000/admin"
+    echo
+    echo "=== Управление сервисами ==="
+    echo "Перезапуск: sudo systemctl restart workernet-backend workernet-frontend"
+    echo "Статус: sudo systemctl status workernet-backend workernet-frontend"
+    echo "Логи: sudo journalctl -u workernet-backend -f"
+}
+
+# Основная функция
+main() {
+    print_status "Запуск быстрого обновления WorkerNet Portal..."
+    echo
+    
+    # Находим директорию проекта
+    find_project_directory
+    
+    # Проверяем обновления
+    if ! check_for_updates; then
+        exit 0
+    fi
+    
+    # Подтверждение обновления
+    if [[ -z "${CI:-}" && -z "${WORKERNET_NONINTERACTIVE:-}" ]]; then
+        echo
+        read -p "Продолжить обновление? (y/N): " confirm
+        if [[ ! $confirm =~ ^[Yy]$ ]]; then
+            print_status "Обновление отменено пользователем"
+            exit 0
+        fi
+    fi
+    
+    # Выполняем обновление
+    stop_services
+    update_code
+    update_python_deps
+    update_nodejs_deps
+    run_migrations
+    start_services
+    show_status
+}
+
+# Обработка аргументов
+case "${1:-}" in
+    --help|-h)
+        echo "Скрипт быстрого обновления WorkerNet Portal"
+        echo
+        echo "Использование: $0 [опции]"
+        echo
+        echo "Опции:"
+        echo "  --help, -h     Показать эту справку"
+        echo "  --check        Только проверить наличие обновлений"
+        echo "  --force        Принудительное обновление без проверки"
+        echo
+        echo "Переменные окружения:"
+        echo "  WORKERNET_NONINTERACTIVE=1  Неинтерактивный режим"
+        echo
+        exit 0
+        ;;
+    --check)
+        find_project_directory
+        if check_for_updates; then
+            print_warning "Доступны обновления"
+            exit 1
+        else
+            print_success "Обновления не найдены"
+            exit 0
+        fi
+        ;;
+    --force)
+        print_warning "Принудительное обновление"
+        find_project_directory
+        stop_services
+        update_code
+        update_python_deps
+        update_nodejs_deps
+        run_migrations
+        start_services
+        show_status
+        ;;
+    *)
+        main "$@"
+        ;;
+esac

@@ -27,6 +27,9 @@ NPM_FETCH_RETRY_MAXTIMEOUT_MS="${NPM_FETCH_RETRY_MAXTIMEOUT_MS:-120000}"
 NPM_FETCH_RETRIES="${NPM_FETCH_RETRIES:-5}"
 NPM_STRICT_SSL="${NPM_STRICT_SSL:-true}"
 
+# Installation mode (will be set by check_existing_installation)
+INSTALLATION_MODE=""
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -1228,6 +1231,346 @@ show_final_info() {
     echo "3. Настройте параметры тенанта"
     echo "4. Настройте SSL‑сертификаты для продакшена"
     echo
+    echo "=== Обновления ==="
+    echo "Ручное обновление: /opt/update-workernet.sh"
+    echo "Автоматическое обновление: настроено (ежедневно в 2:00)"
+    echo "Логи обновлений: /var/log/workernet-update.log"
+    echo "Отключить автообновление: crontab -e (удалить строку с update-workernet.sh)"
+    echo
+}
+
+# Проверка существующей установки
+check_existing_installation() {
+    print_status "Проверяем существующую установку WorkerNet Portal..."
+    print_status "Этот шаг выполняется ПЕРВЫМ для определения режима установки"
+    
+    EXISTING_INSTALLATION=false
+    SERVICES_RUNNING=false
+    
+    # Проверяем наличие сервисов systemd
+    if systemctl list-units --type=service | grep -q "workernet-backend\|workernet-frontend"; then
+        EXISTING_INSTALLATION=true
+        print_warning "Обнаружены существующие сервисы WorkerNet Portal"
+        
+        # Проверяем статус сервисов
+        if systemctl is-active --quiet workernet-backend || systemctl is-active --quiet workernet-frontend; then
+            SERVICES_RUNNING=true
+            print_warning "Сервисы WorkerNet Portal запущены"
+        fi
+    fi
+    
+    # Проверяем наличие директории проекта
+    if [ -d "/opt/workernet" ] || [ -d "$HOME/workernet-portal" ] || [ -d "$HOME/portal-support-ERP-WorkerNet" ]; then
+        EXISTING_INSTALLATION=true
+        print_warning "Обнаружена существующая директория проекта"
+    fi
+    
+    # Проверяем наличие базы данных
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='workernet'" 2>/dev/null | grep -q 1; then
+        EXISTING_INSTALLATION=true
+        print_warning "Обнаружена база данных workernet"
+    fi
+    
+    if [ "$EXISTING_INSTALLATION" = true ]; then
+        echo
+        print_status "Обнаружена существующая установка WorkerNet Portal"
+        
+        # Проверяем неинтерактивный режим
+        if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" || "${WORKERNET_AUTO_UPDATE:-0}" = "1" ]]; then
+            print_status "Неинтерактивный режим: автоматически выбираем обновление"
+            INSTALLATION_MODE="update"
+            return 0
+        fi
+        
+        if [ "$SERVICES_RUNNING" = true ]; then
+            print_warning "Сервисы в настоящее время запущены"
+            echo
+            echo "Выберите действие:"
+            echo "1) Обновить существующую установку (рекомендуется)"
+            echo "2) Выполнить новую установку (остановит сервисы)"
+            echo "3) Выйти"
+            echo
+            
+            while true; do
+                read -p "Введите номер (1-3): " choice
+                case $choice in
+                    1)
+                        print_status "Выбрано обновление существующей установки"
+                        INSTALLATION_MODE="update"
+                        return 0
+                        ;;
+                    2)
+                        print_warning "Выбрана новая установка"
+                        echo
+                        read -p "Это остановит все сервисы WorkerNet Portal. Продолжить? (y/N): " confirm
+                        if [[ $confirm =~ ^[Yy]$ ]]; then
+                            print_status "Подтверждена новая установка"
+                            INSTALLATION_MODE="fresh"
+                            return 0
+                        else
+                            print_status "Установка отменена пользователем"
+                            exit 0
+                        fi
+                        ;;
+                    3)
+                        print_status "Установка отменена пользователем"
+                        exit 0
+                        ;;
+                    *)
+                        print_error "Неверный выбор. Введите 1, 2 или 3"
+                        ;;
+                esac
+            done
+        else
+            echo
+            echo "Выберите действие:"
+            echo "1) Обновить существующую установку"
+            echo "2) Выполнить новую установку"
+            echo "3) Выйти"
+            echo
+            
+            while true; do
+                read -p "Введите номер (1-3): " choice
+                case $choice in
+                    1)
+                        print_status "Выбрано обновление существующей установки"
+                        INSTALLATION_MODE="update"
+                        return 0
+                        ;;
+                    2)
+                        print_status "Выбрана новая установка"
+                        INSTALLATION_MODE="fresh"
+                        return 0
+                        ;;
+                    3)
+                        print_status "Установка отменена пользователем"
+                        exit 0
+                        ;;
+                    *)
+                        print_error "Неверный выбор. Введите 1, 2 или 3"
+                        ;;
+                esac
+            done
+        fi
+    else
+        print_success "Существующая установка не обнаружена"
+        INSTALLATION_MODE="fresh"
+    fi
+}
+
+# Остановка сервисов
+stop_services() {
+    print_status "Останавливаем сервисы WorkerNet Portal..."
+    
+    # Останавливаем systemd сервисы
+    sudo systemctl stop workernet-backend 2>/dev/null || true
+    sudo systemctl stop workernet-frontend 2>/dev/null || true
+    
+    # Останавливаем Docker контейнеры если они запущены
+    if command -v docker >/dev/null 2>&1; then
+        if docker ps | grep -q "workernet"; then
+            print_status "Останавливаем Docker контейнеры..."
+            docker compose down 2>/dev/null || true
+        fi
+    fi
+    
+    print_success "Сервисы остановлены"
+}
+
+# Обновление существующей установки
+update_installation() {
+    print_status "Обновление существующей установки WorkerNet Portal..."
+    
+    # Останавливаем сервисы для обновления
+    stop_services
+    
+    # Обновляем код из репозитория
+    if [ -d "$WORKERNET_ROOT" ]; then
+        print_status "Обновляем код из репозитория..."
+        cd "$WORKERNET_ROOT"
+        
+        # Сохраняем локальные изменения
+        git stash push -m "Auto-stash before update $(date)" 2>/dev/null || true
+        
+        # Обновляем код
+        git fetch --all --prune
+        git reset --hard "origin/main" 2>/dev/null || git reset --hard "origin/master" 2>/dev/null || true
+        git submodule update --init --recursive 2>/dev/null || true
+        
+        print_success "Код обновлен"
+    fi
+    
+    # Обновляем зависимости Python
+    if [ -d "$WORKERNET_ROOT/backend" ] && [ -f "$WORKERNET_ROOT/backend/venv/bin/activate" ]; then
+        print_status "Обновляем зависимости Python..."
+        cd "$WORKERNET_ROOT/backend"
+        source venv/bin/activate
+        pip install -U pip setuptools wheel
+        pip install -r requirements.txt
+        if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+        fi
+        print_success "Зависимости Python обновлены"
+    fi
+    
+    # Обновляем зависимости Node.js
+    if [ -d "$WORKERNET_ROOT/frontend" ]; then
+        print_status "Обновляем зависимости Node.js..."
+        cd "$WORKERNET_ROOT/frontend"
+        npm update
+        print_success "Зависимости Node.js обновлены"
+    fi
+    
+    # Выполняем миграции базы данных
+    if [ -d "$WORKERNET_ROOT/backend" ]; then
+        print_status "Выполняем миграции базы данных..."
+        cd "$WORKERNET_ROOT/backend"
+        source venv/bin/activate
+        python manage.py migrate
+        python manage.py collectstatic --noinput
+        print_success "Миграции выполнены"
+    fi
+    
+    # Перезапускаем сервисы
+    print_status "Перезапускаем сервисы..."
+    sudo systemctl start workernet-backend
+    sudo systemctl start workernet-frontend
+    
+    print_success "Обновление завершено!"
+}
+
+# Создание скрипта автоматического обновления
+create_auto_update_script() {
+    print_status "Создаем скрипт автоматического обновления..."
+    
+    # Создаем скрипт обновления
+    sudo tee /opt/update-workernet.sh > /dev/null << 'EOF'
+#!/bin/bash
+
+# Скрипт автоматического обновления WorkerNet Portal
+# Запускается через cron для автоматических обновлений
+
+set -e
+
+# Цвета для вывода
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # Без цвета
+
+# Функции для вывода
+print_status() {
+    echo -e "${BLUE}[ИНФО]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[УСПЕХ]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[ВНИМАНИЕ]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ОШИБКА]${NC} $1"
+}
+
+# Логирование
+LOG_FILE="/var/log/workernet-update.log"
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+}
+
+# Проверка обновлений
+check_for_updates() {
+    print_status "Проверяем наличие обновлений..."
+    
+    cd /opt/workernet || cd "$HOME/portal-support-ERP-WorkerNet" || {
+        print_error "Директория проекта не найдена"
+        exit 1
+    }
+    
+    # Получаем информацию о текущей ветке
+    CURRENT_BRANCH=$(git branch --show-current)
+    git fetch --all --prune
+    
+    # Проверяем наличие новых коммитов
+    LOCAL=$(git rev-parse HEAD)
+    REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH")
+    
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        print_status "Обновления не найдены"
+        return 1
+    else
+        print_status "Найдены обновления"
+        return 0
+    fi
+}
+
+# Выполнение обновления
+perform_update() {
+    print_status "Выполняем обновление..."
+    
+    # Устанавливаем переменные для неинтерактивного режима
+    export WORKERNET_AUTO_UPDATE=1
+    export WORKERNET_NONINTERACTIVE=1
+    
+    # Запускаем скрипт установки в режиме обновления
+    if [ -f "/opt/workernet/scripts/install-ubuntu.sh" ]; then
+        cd /opt/workernet
+        ./scripts/install-ubuntu.sh
+    elif [ -f "$HOME/portal-support-ERP-WorkerNet/scripts/install-ubuntu.sh" ]; then
+        cd "$HOME/portal-support-ERP-WorkerNet"
+        ./scripts/install-ubuntu.sh
+    else
+        print_error "Скрипт установки не найден"
+        exit 1
+    fi
+}
+
+# Основная функция
+main() {
+    log "Запуск проверки обновлений WorkerNet Portal"
+    
+    if check_for_updates; then
+        log "Найдены обновления, начинаем процесс обновления"
+        perform_update
+        log "Обновление завершено успешно"
+        print_success "WorkerNet Portal успешно обновлен!"
+    else
+        log "Обновления не найдены"
+    fi
+}
+
+# Запуск
+main "$@"
+EOF
+
+    # Делаем скрипт исполняемым
+    sudo chmod +x /opt/update-workernet.sh
+    
+    # Создаем задачу cron для автоматического обновления (ежедневно в 2:00)
+    print_status "Настраиваем автоматическое обновление..."
+    
+    # Проверяем, есть ли уже задача cron
+    if ! crontab -l 2>/dev/null | grep -q "update-workernet.sh"; then
+        # Добавляем задачу cron
+        (crontab -l 2>/dev/null; echo "0 2 * * * /opt/update-workernet.sh >> /var/log/workernet-update.log 2>&1") | crontab -
+        print_success "Автоматическое обновление настроено (ежедневно в 2:00)"
+    else
+        print_status "Автоматическое обновление уже настроено"
+    fi
+    
+    print_success "Скрипт автоматического обновления создан: /opt/update-workernet.sh"
+}
+
+# Новая установка
+fresh_installation() {
+    print_status "Выполнение новой установки WorkerNet Portal..."
+    
+    # Останавливаем существующие сервисы если они есть
+    stop_services
 }
 
 # Main installation function
@@ -1235,52 +1578,106 @@ main() {
     print_status "Запуск установки WorkerNet Portal для Ubuntu 24.04 LTS..."
     echo
     
-    # Раннее обновление проекта, если уже клонирован
-    early_update_repository
+    # Порядок выполнения:
+    # 1. Проверка существующей установки (ПЕРВЫМ ДЕЛОМ!)
+    # 2. Определение режима установки (update/fresh)
+    # 3. Выполнение в зависимости от режима
+    # 4. В режиме update: early_update_repository + update_installation
+    # 5. В режиме fresh: полная установка с нуля
     
-    # Check prerequisites
-    check_root
-    check_ubuntu_version
-    check_connectivity
-    configure_apt_mirror_if_needed
+    # Проверяем существующую установку
+    check_existing_installation
     
-    # Installation steps
-    update_system
-    install_basic_packages
-    install_python
-    install_nodejs
-    install_postgresql
-    install_redis
-    install_docker
-    install_additional_tools
-    verify_dependencies
+    # Проверяем, что режим установки был определен
+    if [ -z "$INSTALLATION_MODE" ]; then
+        print_error "Режим установки не определен"
+        exit 1
+    fi
     
-    # Configuration
-    configure_redis
+    print_status "Выбран режим установки: $INSTALLATION_MODE"
     
-    # Project setup
-    create_project_directory
-    clone_repository
-    setup_environment
-    # Гарантируем наличие каталога логов бэкенда до миграций
-    mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
-    setup_python_env
-    setup_nodejs_env
-    
-    # Database and Redis setup (ПЕРЕД миграциями!)
-    setup_database
-    setup_redis
-    
-    run_migrations
-    create_superuser
-    
-    # Service setup
-    setup_systemd_services
-    setup_firewall
-    start_services
-    
-    # Final information
-    show_final_info
+    # Выполняем установку в зависимости от выбранного режима
+    if [ "$INSTALLATION_MODE" = "update" ]; then
+        # Режим обновления
+        # Раннее обновление проекта, если уже клонирован
+        early_update_repository
+        update_installation
+        
+        # Показываем информацию об обновлении
+        echo
+        print_success "Обновление WorkerNet Portal завершено!"
+        echo
+        echo "=== Статус сервисов ==="
+        sudo systemctl status workernet-backend --no-pager -l
+        sudo systemctl status workernet-frontend --no-pager -l
+        echo
+        echo "=== Доступ к сервисам ==="
+        echo "Фронтенд: http://localhost:3000"
+        echo "API: http://localhost:8000"
+        echo "Админ‑панель: http://localhost:8000/admin"
+        echo
+        echo "=== Управление сервисами ==="
+        echo "Перезапуск: sudo systemctl restart workernet-backend workernet-frontend"
+        echo "Статус: sudo systemctl status workernet-backend workernet-frontend"
+        echo "Логи: sudo journalctl -u workernet-backend -f"
+        echo
+        echo "=== Обновления ==="
+        echo "Ручное обновление: /opt/update-workernet.sh"
+        echo "Автоматическое обновление: настроено (ежедневно в 2:00)"
+        echo "Логи обновлений: /var/log/workernet-update.log"
+        echo "Отключить автообновление: crontab -e (удалить строку с update-workernet.sh)"
+        
+    else
+        # Режим новой установки
+        fresh_installation
+        
+        # Check prerequisites
+        check_root
+        check_ubuntu_version
+        check_connectivity
+        configure_apt_mirror_if_needed
+        
+        # Installation steps
+        update_system
+        install_basic_packages
+        install_python
+        install_nodejs
+        install_postgresql
+        install_redis
+        install_docker
+        install_additional_tools
+        verify_dependencies
+        
+        # Configuration
+        configure_redis
+        
+        # Project setup
+        create_project_directory
+        clone_repository
+        setup_environment
+        # Гарантируем наличие каталога логов бэкенда до миграций
+        mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
+        setup_python_env
+        setup_nodejs_env
+        
+        # Database and Redis setup (ПЕРЕД миграциями!)
+        setup_database
+        setup_redis
+        
+        run_migrations
+        create_superuser
+        
+        # Service setup
+        setup_systemd_services
+        setup_firewall
+        start_services
+        
+        # Создаем скрипт автоматического обновления
+        create_auto_update_script
+        
+        # Final information
+        show_final_info
+    fi
 }
 
 # Run main function
