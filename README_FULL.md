@@ -148,7 +148,7 @@ sudo systemctl restart redis-server
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Настроить переменные окружения

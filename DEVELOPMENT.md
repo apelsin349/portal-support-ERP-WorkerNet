@@ -6,7 +6,7 @@
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Создать ветку для разработки
@@ -20,7 +20,7 @@ git checkout -b feature/your-feature-name
 cd backend
 
 # Создать виртуальное окружение
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate  # Linux/macOS
 # или
 venv\Scripts\activate     # Windows

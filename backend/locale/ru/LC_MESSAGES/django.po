@@ -1,0 +1,491 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: WorkerNet Portal 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-01 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: backend/app/models/ticket.py:16
+msgid "Низкий"
+msgstr "Низкий"
+
+#: backend/app/models/ticket.py:17
+msgid "Средний"
+msgstr "Средний"
+
+#: backend/app/models/ticket.py:18
+msgid "Высокий"
+msgstr "Высокий"
+
+#: backend/app/models/ticket.py:19
+msgid "Срочный"
+msgstr "Срочный"
+
+#: backend/app/models/ticket.py:20
+msgid "Критический"
+msgstr "Критический"
+
+#: backend/app/models/ticket.py:24
+msgid "Открыт"
+msgstr "Открыт"
+
+#: backend/app/models/ticket.py:25
+msgid "В работе"
+msgstr "В работе"
+
+#: backend/app/models/ticket.py:26
+msgid "Ожидание"
+msgstr "Ожидание"
+
+#: backend/app/models/ticket.py:27
+msgid "Решён"
+msgstr "Решён"
+
+#: backend/app/models/ticket.py:28
+msgid "Закрыт"
+msgstr "Закрыт"
+
+#: backend/app/models/ticket.py:29
+msgid "Отменён"
+msgstr "Отменён"
+
+#: backend/app/models/ticket.py:33
+msgid "Техническая"
+msgstr "Техническая"
+
+#: backend/app/models/ticket.py:34
+msgid "Биллинг"
+msgstr "Биллинг"
+
+#: backend/app/models/ticket.py:35
+msgid "Общая"
+msgstr "Общая"
+
+#: backend/app/models/ticket.py:36
+msgid "Баг"
+msgstr "Баг"
+
+#: backend/app/models/ticket.py:37
+msgid "Запрос фичи"
+msgstr "Запрос фичи"
+
+#: backend/app/models/ticket.py:38
+msgid "Другое"
+msgstr "Другое"
+
+#: backend/app/models/ticket.py:42
+msgid "ID тикета"
+msgstr "ID тикета"
+
+#: backend/app/models/ticket.py:43
+msgid "Заголовок"
+msgstr "Заголовок"
+
+#: backend/app/models/ticket.py:44
+msgid "Описание"
+msgstr "Описание"
+
+#: backend/app/models/ticket.py:47
+msgid "Приоритет"
+msgstr "Приоритет"
+
+#: backend/app/models/ticket.py:48
+msgid "Статус"
+msgstr "Статус"
+
+#: backend/app/models/ticket.py:49
+msgid "Категория"
+msgstr "Категория"
+
+#: backend/app/models/ticket.py:56
+msgid "Автор"
+msgstr "Автор"
+
+#: backend/app/models/ticket.py:64
+msgid "Назначен"
+msgstr "Назначен"
+
+#: backend/app/models/ticket.py:72
+msgid "Арендатор"
+msgstr "Арендатор"
+
+#: backend/app/models/ticket.py:76
+msgid "SLA (часы)"
+msgstr "SLA (часы)"
+
+#: backend/app/models/ticket.py:77
+msgid "Крайний срок"
+msgstr "Крайний срок"
+
+#: backend/app/models/ticket.py:78
+msgid "Время решения"
+msgstr "Время решения"
+
+#: backend/app/models/ticket.py:81
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/ticket.py:82
+msgid "Обновлено"
+msgstr "Обновлено"
+
+#: backend/app/models/ticket.py:85
+msgid "Пользовательские поля"
+msgstr "Пользовательские поля"
+
+#: backend/app/models/ticket.py:88
+msgid "Теги"
+msgstr "Теги"
+
+#: backend/app/models/ticket.py:91
+msgid "Тикет"
+msgstr "Тикет"
+
+#: backend/app/models/ticket.py:92
+msgid "Тикеты"
+msgstr "Тикеты"
+
+#: backend/app/models/ticket.py:117
+msgid "Тикет"
+msgstr "Тикет"
+
+#: backend/app/models/ticket.py:123
+msgid "Автор"
+msgstr "Автор"
+
+#: backend/app/models/ticket.py:125
+msgid "Содержимое"
+msgstr "Содержимое"
+
+#: backend/app/models/ticket.py:126
+msgid "Внутренний"
+msgstr "Внутренний"
+
+#: backend/app/models/ticket.py:127
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/ticket.py:128
+msgid "Обновлено"
+msgstr "Обновлено"
+
+#: backend/app/models/ticket.py:131
+msgid "Комментарий к тикету"
+msgstr "Комментарий к тикету"
+
+#: backend/app/models/ticket.py:132
+msgid "Комментарии к тикету"
+msgstr "Комментарии к тикету"
+
+#: backend/app/models/ticket.py:147
+msgid "Тикет"
+msgstr "Тикет"
+
+#: backend/app/models/ticket.py:153
+msgid "Загрузил"
+msgstr "Загрузил"
+
+#: backend/app/models/ticket.py:155
+msgid "Файл"
+msgstr "Файл"
+
+#: backend/app/models/ticket.py:156
+msgid "Имя файла"
+msgstr "Имя файла"
+
+#: backend/app/models/ticket.py:157
+msgid "Размер файла"
+msgstr "Размер файла"
+
+#: backend/app/models/ticket.py:158
+msgid "MIME-тип"
+msgstr "MIME-тип"
+
+#: backend/app/models/ticket.py:159
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/ticket.py:162
+msgid "Вложение тикета"
+msgstr "Вложение тикета"
+
+#: backend/app/models/ticket.py:163
+msgid "Вложения тикетов"
+msgstr "Вложения тикетов"
+
+#: backend/app/models/ticket.py:173
+msgid "Название"
+msgstr "Название"
+
+#: backend/app/models/ticket.py:174
+msgid "Цвет"
+msgstr "Цвет"
+
+#: backend/app/models/ticket.py:175
+msgid "Описание"
+msgstr "Описание"
+
+#: backend/app/models/ticket.py:176
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/ticket.py:179
+msgid "Тег"
+msgstr "Тег"
+
+#: backend/app/models/ticket.py:180
+msgid "Теги"
+msgstr "Теги"
+
+#: backend/app/models/ticket.py:191
+msgid "Название"
+msgstr "Название"
+
+#: backend/app/models/ticket.py:192
+msgid "Описание"
+msgstr "Описание"
+
+#: backend/app/models/ticket.py:195
+msgid "Время ответа (часы)"
+msgstr "Время ответа (часы)"
+
+#: backend/app/models/ticket.py:198
+msgid "Время решения (часы)"
+msgstr "Время решения (часы)"
+
+#: backend/app/models/ticket.py:201
+msgid "Приоритет"
+msgstr "Приоритет"
+
+#: backend/app/models/ticket.py:208
+msgid "Арендатор"
+msgstr "Арендатор"
+
+#: backend/app/models/ticket.py:212
+msgid "Активен"
+msgstr "Активен"
+
+#: backend/app/models/ticket.py:214
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/ticket.py:215
+msgid "Обновлено"
+msgstr "Обновлено"
+
+#: backend/app/models/ticket.py:244
+msgid "Время первого ответа"
+msgstr "Время первого ответа"
+
+#: backend/app/models/ticket.py:245
+msgid "Время решения"
+msgstr "Время решения"
+
+#: backend/app/models/ticket.py:248
+msgid "SLA нарушен"
+msgstr "SLA нарушен"
+
+#: backend/app/models/ticket.py:249
+msgid "Причина нарушения"
+msgstr "Причина нарушения"
+
+#: backend/app/models/ticket.py:251
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/ticket.py:252
+msgid "Обновлено"
+msgstr "Обновлено"
+
+#: backend/app/models/ticket.py:255
+msgid "SLA тикета"
+msgstr "SLA тикета"
+
+#: backend/app/models/ticket.py:256
+msgid "SLA тикетов"
+msgstr "SLA тикетов"
+
+#: backend/app/models/tenant.py:12
+msgid "Название арендатора"
+msgstr "Название арендатора"
+
+#: backend/app/models/tenant.py:13
+msgid "Слаг"
+msgstr "Слаг"
+
+#: backend/app/models/tenant.py:14
+msgid "Домен"
+msgstr "Домен"
+
+#: backend/app/models/tenant.py:15
+msgid "Активен"
+msgstr "Активен"
+
+#: backend/app/models/tenant.py:16
+msgid "Создан"
+msgstr "Создан"
+
+#: backend/app/models/tenant.py:17
+msgid "Обновлён"
+msgstr "Обновлён"
+
+#: backend/app/models/tenant.py:20
+msgid "Конфигурация"
+msgstr "Конфигурация"
+
+#: backend/app/models/tenant.py:23
+msgid "Логотип"
+msgstr "Логотип"
+
+#: backend/app/models/tenant.py:24
+msgid "Основной цвет"
+msgstr "Основной цвет"
+
+#: backend/app/models/tenant.py:25
+msgid "Дополнительный цвет"
+msgstr "Дополнительный цвет"
+
+#: backend/app/models/tenant.py:28
+msgid "Фичи"
+msgstr "Фичи"
+
+#: backend/app/models/tenant.py:31
+msgid "Арендатор"
+msgstr "Арендатор"
+
+#: backend/app/models/tenant.py:32
+msgid "Арендаторы"
+msgstr "Арендаторы"
+
+#: backend/app/models/tenant.py:46
+msgid "Арендатор"
+msgstr "Арендатор"
+
+#: backend/app/models/tenant.py:50
+msgid "Аватар"
+msgstr "Аватар"
+
+#: backend/app/models/tenant.py:51
+msgid "Телефон"
+msgstr "Телефон"
+
+#: backend/app/models/tenant.py:52
+msgid "Отдел"
+msgstr "Отдел"
+
+#: backend/app/models/tenant.py:53
+msgid "Должность"
+msgstr "Должность"
+
+#: backend/app/models/tenant.py:56
+msgid "Предпочтения"
+msgstr "Предпочтения"
+
+#: backend/app/models/tenant.py:59
+msgid "Верифицирован"
+msgstr "Верифицирован"
+
+#: backend/app/models/tenant.py:60
+msgid "IP последнего входа"
+msgstr "IP последнего входа"
+
+#: backend/app/models/tenant.py:63
+msgid "Пользователь"
+msgstr "Пользователь"
+
+#: backend/app/models/tenant.py:64
+msgid "Пользователи"
+msgstr "Пользователи"
+
+#: backend/app/models/tenant.py:79
+msgid "Арендатор"
+msgstr "Арендатор"
+
+#: backend/app/models/tenant.py:83
+msgid "Часовой пояс"
+msgstr "Часовой пояс"
+
+#: backend/app/models/tenant.py:84
+msgid "Язык"
+msgstr "Язык"
+
+#: backend/app/models/tenant.py:85
+msgid "Формат даты"
+msgstr "Формат даты"
+
+#: backend/app/models/tenant.py:86
+msgid "Формат времени"
+msgstr "Формат времени"
+
+#: backend/app/models/tenant.py:89
+msgid "Автоназначение тикетов"
+msgstr "Автоназначение тикетов"
+
+#: backend/app/models/tenant.py:90
+msgid "Уровни приоритетов"
+msgstr "Уровни приоритетов"
+
+#: backend/app/models/tenant.py:91
+msgid "Категории тикетов"
+msgstr "Категории тикетов"
+
+#: backend/app/models/tenant.py:94
+msgid "Базовый SLA (часы)"
+msgstr "Базовый SLA (часы)"
+
+#: backend/app/models/tenant.py:95
+msgid "Правила эскалации"
+msgstr "Правила эскалации"
+
+#: backend/app/models/tenant.py:98
+msgid "Уведомления по email"
+msgstr "Уведомления по email"
+
+#: backend/app/models/tenant.py:99
+msgid "Уведомления по SMS"
+msgstr "Уведомления по SMS"
+
+#: backend/app/models/tenant.py:100
+msgid "Push-уведомления"
+msgstr "Push-уведомления"
+
+#: backend/app/models/tenant.py:103
+msgid "Двухфакторная аутентификация"
+msgstr "Двухфакторная аутентификация"
+
+#: backend/app/models/tenant.py:104
+msgid "IP-фильтрация"
+msgstr "IP-фильтрация"
+
+#: backend/app/models/tenant.py:105
+msgid "Политика паролей"
+msgstr "Политика паролей"
+
+#: backend/app/models/tenant.py:108
+msgid "Создано"
+msgstr "Создано"
+
+#: backend/app/models/tenant.py:109
+msgid "Обновлено"
+msgstr "Обновлено"
+
+#: backend/app/models/tenant.py:112
+msgid "Настройки арендатора"
+msgstr "Настройки арендатора"
+
+#: backend/app/models/tenant.py:113
+msgid "Настройки арендаторов"
+msgstr "Настройки арендаторов"

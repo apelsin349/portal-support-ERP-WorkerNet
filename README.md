@@ -31,7 +31,7 @@
 - Назначение исполнителей
 - Передача тикетов между отделами
 - Эскалация тикетов
-- Изменение статуса (Новый, В работе, Ожидает клиента, Решен, Закрыт)
+- Изменение статуса (Новый, В работе, Ожидает клиента, Решён, Закрыт)
 - Добавление комментариев и заметок
 - Временные метки всех действий
 - Система шаблонов ответов
@@ -1309,8 +1309,8 @@ class QueryOptimizer:
 
 #### 3.3 Безопасность
 - Аутентификация через LDAP/Active Directory
-- Двухфакторная аутентификация
-- Шифрование данных в покое и при передаче
+- Двухфакторная аутентификация (2FA/TOTP)
+- Шифрование данных в покое и при передаче (AES-256)
 - Аудит всех действий пользователей
 - Защита от SQL-инъекций и XSS
 - Защита от DDoS атак
@@ -1318,6 +1318,11 @@ class QueryOptimizer:
 - Блокировка подозрительных IP
 - Политики паролей
 - Управление сессиями
+- OWASP Top 10 compliance
+- Content Security Policy (CSP)
+- HSTS (HTTP Strict Transport Security)
+- Fail2ban интеграция
+- Регулярные security updates
 
 #### 3.4 Масштабируемость
 - Вертикальное масштабирование
@@ -1326,10 +1331,12 @@ class QueryOptimizer:
 - Пагинация для больших списков
 
 #### 3.5 Совместимость
-- Поддержка браузеров: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
-- Мобильная адаптация
-- API для интеграций
+- Поддержка браузеров: Chrome 120+, Firefox 120+, Safari 17+, Edge 120+
+- Мобильная адаптация (PWA support)
+- API для интеграций (REST + GraphQL)
 - Поддержка RTL языков
+- WebAssembly поддержка
+- Service Workers для офлайн режима
 
 #### 3.6 Локализация
 - Поддержка нескольких языков интерфейса
@@ -1533,9 +1540,9 @@ class QueryOptimizer:
 #### 5.1 Технологический стек
 
 **Backend:**
-- Язык: Python 3.9+ / Node.js 16+
+- Язык: Python 3.11+ / Node.js 18+
 - Фреймворк: Django/FastAPI / Express.js
-- База данных: PostgreSQL 13+
+- База данных: PostgreSQL 15+
 - Очереди: Celery / Bull Queue
 
 **Frontend:**
@@ -1545,10 +1552,13 @@ class QueryOptimizer:
 - State management: Redux / Pinia
 
 **Инфраструктура:**
-- Контейнеризация: Docker
+- Контейнеризация: Docker + Docker Compose
 - Веб-сервер: Nginx
-- Мониторинг: Prometheus + Grafana
+- Мониторинг: Prometheus + Grafana + AlertManager
 - Логирование: ELK Stack (Elasticsearch, Logstash, Kibana)
+- Трассировка: Jaeger + OpenTelemetry
+- Метрики: Prometheus + Node Exporter
+- Алертинг: AlertManager + Slack/Email интеграция
 
 #### 5.2 Архитектура системы
 
@@ -1978,9 +1988,9 @@ GET    /api/system/versions      # Версии API
 ## БЫСТРЫЙ СТАРТ
 
 ### Системные требования
-- Python 3.9+ или Node.js 16+
-- PostgreSQL 13+
-- Redis 6+
+- Python 3.11+ или Node.js 18+
+- PostgreSQL 15+
+- Redis 7+
 - Docker и Docker Compose
 - Git
 
@@ -1988,7 +1998,7 @@ GET    /api/system/versions      # Версии API
 
 #### 1. Клонирование репозитория
 ```bash
-git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 ```
 
@@ -2024,19 +2034,19 @@ code .env
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install -y python3.9 python3.9-venv python3-pip nodejs npm postgresql redis-server
+sudo apt-get install -y python3.11 python3.11-venv python3-pip nodejs npm postgresql redis-server
 
 # CentOS/RHEL
-sudo yum install -y python39 python39-pip nodejs npm postgresql-server redis
+sudo yum install -y python311 python311-pip nodejs npm postgresql-server redis
 
 # macOS
-brew install python@3.9 node postgresql redis
+brew install python@3.11 node postgresql redis
 ```
 
 **Установка Python зависимостей:**
 ```bash
 # Создание виртуального окружения
-python3.9 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate  # Linux/macOS
 # или
 venv\Scripts\activate     # Windows

@@ -6,10 +6,11 @@
 
 #### Системные требования
 - **OS**: Ubuntu 24.04 LTS (рекомендуется)
-- **RAM**: 8+ GB
-- **CPU**: 4+ ядра
-- **Диск**: 100+ GB SSD
-- **Сеть**: Статический IP, домен
+- **RAM**: 16+ GB (рекомендуется 32 GB для production)
+- **CPU**: 8+ ядер (рекомендуется 16 для production)
+- **Диск**: 200+ GB NVMe SSD
+- **Сеть**: Статический IP, домен, SSL сертификат
+- **Backup**: Автоматическое резервное копирование
 
 #### Установка зависимостей
 ```bash
@@ -23,7 +24,7 @@ sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 # Установить дополнительные инструменты
-sudo apt install -y nginx certbot python3-certbot-nginx ufw
+sudo apt install -y nginx certbot python3-certbot-nginx ufw fail2ban htop iotop
 ```
 
 ### 2. Настройка домена и SSL
@@ -197,7 +198,7 @@ sudo mkdir -p /var/www/workernet
 cd /var/www/workernet
 
 # Клонировать репозиторий
-sudo git clone https://github.com/your-org/portal-support-ERP-WorkerNet.git .
+sudo git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git .
 sudo chown -R $USER:$USER /var/www/workernet
 
 # Настроить переменные окружения
@@ -494,12 +495,14 @@ sudo nano /etc/fail2ban/jail.local
 bantime = 3600
 findtime = 600
 maxretry = 3
+ignoreip = 127.0.0.1/8 ::1
 
 [nginx-http-auth]
 enabled = true
 filter = nginx-http-auth
 port = http,https
 logpath = /var/log/nginx/error.log
+maxretry = 3
 
 [nginx-limit-req]
 enabled = true
@@ -507,6 +510,24 @@ filter = nginx-limit-req
 port = http,https
 logpath = /var/log/nginx/error.log
 maxretry = 10
+
+[sshd]
+enabled = true
+port = ssh
+logpath = /var/log/auth.log
+maxretry = 3
+
+[apache-auth]
+enabled = false
+
+[apache-badbots]
+enabled = false
+
+[apache-noscript]
+enabled = false
+
+[apache-overflows]
+enabled = false
 ```
 
 ### Настройка автоматических обновлений

@@ -261,7 +261,7 @@ npx react-native run-ios
 ### Установка для разработки
 ```bash
 # Форк репозитория
-git clone https://github.com/your-username/portal-support-ERP-WorkerNet.git
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Создать ветку
