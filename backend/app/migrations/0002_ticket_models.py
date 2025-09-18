@@ -11,22 +11,45 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Tag model
-        migrations.CreateModel(
-            name='Tag',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50, unique=True, verbose_name='Название')),
-                ('color', models.CharField(default='#1976d2', max_length=7, verbose_name='Цвет')),
-                ('description', models.TextField(blank=True, verbose_name='Описание')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+        # Tag model (safe create if not exists to avoid conflicts with pre-existing table)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS tags (
+                    id BIGSERIAL PRIMARY KEY,
+                    name VARCHAR(50) UNIQUE NOT NULL,
+                    color VARCHAR(7) NOT NULL DEFAULT '#1976d2',
+                    description TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS tags;
+                """
+            ),
+        ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='Tag',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('name', models.CharField(max_length=50, unique=True, verbose_name='Название')),
+                        ('color', models.CharField(default='#1976d2', max_length=7, verbose_name='Цвет')),
+                        ('description', models.TextField(blank=True, verbose_name='Описание')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+                    ],
+                    options={
+                        'verbose_name': 'Тег',
+                        'verbose_name_plural': 'Теги',
+                        'db_table': 'tags',
+                        'ordering': ['name'],
+                    },
+                ),
             ],
-            options={
-                'verbose_name': 'Тег',
-                'verbose_name_plural': 'Теги',
-                'db_table': 'tags',
-                'ordering': ['name'],
-            },
+            database_operations=[],
         ),
         # Ticket model
         migrations.CreateModel(
