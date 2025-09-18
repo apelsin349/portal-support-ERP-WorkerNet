@@ -58,7 +58,7 @@ def _app_exists(dotted: str) -> bool:
         return False
 
 _LOCAL_APP_CANDIDATES = [
-    'app.apps.AppConfig',
+    # 'app.apps.AppConfig',  # Исключаем, чтобы избежать дублирования
     'app.core',
     'app.api',
     'app.utils',
