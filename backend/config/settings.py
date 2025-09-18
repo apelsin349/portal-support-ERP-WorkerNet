@@ -14,6 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
+    ALLOWED_HOSTS_EXTRA=(list, []),
 )
 
 # Read .env file
@@ -26,7 +27,17 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+# Разрешенные хосты: берем из окружения, добавляем дополнительные и удобные значения для разработки
+ALLOWED_HOSTS = env('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '0.0.0.0'])
+ALLOWED_HOSTS += env('ALLOWED_HOSTS_EXTRA', default=[])
+
+# В режиме разработки можно автоматически разрешить локальные/внутренние IP
+if DEBUG:
+    # Добавьте сюда нужные IP для dev-среды; IP из окружения также поддерживается через ALLOWED_HOSTS_EXTRA
+    for var in ('SERVER_NAME', 'HOST', 'HOSTNAME'):
+        val = os.environ.get(var)
+        if val and val not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(val)
 
 # Application definition
 DJANGO_APPS = [
