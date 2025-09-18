@@ -14,18 +14,14 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     
     sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
     sender_avatar = serializers.ImageField(source='sender.avatar', read_only=True)
-    recipient_name = serializers.CharField(source='recipient.get_full_name', read_only=True)
-    recipient_avatar = serializers.ImageField(source='recipient.avatar', read_only=True)
     
     class Meta:
         model = ChatMessage
         fields = [
-            'id', 'sender', 'sender_name', 'sender_avatar',
-            'recipient', 'recipient_name', 'recipient_avatar',
-            'message', 'message_type', 'is_read', 'is_edited',
-            'edited_at', 'created_at', 'updated_at'
+            'id', 'room_name', 'sender', 'sender_name', 'sender_avatar',
+            'content', 'message_type', 'timestamp'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'edited_at']
+        read_only_fields = ['id', 'timestamp']
 
 
 class ChatMessageCreateSerializer(serializers.ModelSerializer):
@@ -33,12 +29,11 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ChatMessage
-        fields = ['recipient', 'message', 'message_type']
+        fields = ['room_name', 'content', 'message_type']
     
     def create(self, validated_data):
         """Создание сообщения."""
         validated_data['sender'] = self.context['request'].user
-        validated_data['tenant'] = self.context['request'].user.tenant
         return super().create(validated_data)
 
 
@@ -47,15 +42,10 @@ class ChatMessageUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ChatMessage
-        fields = ['message', 'is_read']
+        fields = ['content']
     
     def update(self, instance, validated_data):
         """Обновление сообщения."""
-        if 'message' in validated_data and validated_data['message'] != instance.message:
-            validated_data['is_edited'] = True
-            from django.utils import timezone
-            validated_data['edited_at'] = timezone.now()
-        
         return super().update(instance, validated_data)
 
 
@@ -125,10 +115,12 @@ class ChatMessageSearchSerializer(serializers.Serializer):
         queryset=User.objects.all(),
         required=False
     )
-    message_type = serializers.ChoiceField(
-        choices=ChatMessage.MESSAGE_TYPE_CHOICES,
-        required=False
-    )
+    message_type = serializers.ChoiceField(choices=[
+        ("text", "text"),
+        ("image", "image"),
+        ("file", "file"),
+        ("system", "system"),
+    ], required=False)
     date_from = serializers.DateTimeField(required=False)
     date_to = serializers.DateTimeField(required=False)
     
