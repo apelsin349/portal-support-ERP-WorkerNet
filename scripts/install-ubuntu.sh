@@ -1082,6 +1082,10 @@ EOF
         print_success "Django может подключиться к базе данных"
     fi
     
+    # Создаем миграции если их нет
+    print_status "Создаем миграции Django..."
+    python manage.py makemigrations --noinput || true
+    
     # Выполняем миграции
     print_status "Выполняем миграции Django..."
     python manage.py migrate
