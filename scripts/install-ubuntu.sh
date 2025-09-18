@@ -864,6 +864,39 @@ setup_nodejs_env() {
     print_success "Окружение Node.js настроено"
 }
 
+# Проверка и исправление базы данных
+check_and_fix_database() {
+    print_status "Проверяем и исправляем базу данных..."
+    
+    DB_USER="workernet"
+    DB_PASSWORD="workernet123"
+    DB_NAME="workernet"
+    
+    # Проверяем подключение
+    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+        print_success "База данных работает корректно"
+        return 0
+    fi
+    
+    print_warning "Проблема с базой данных, исправляем..."
+    
+    # Удаляем и пересоздаем пользователя и базу данных
+    sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    
+    # Проверяем снова
+    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+        print_success "База данных исправлена!"
+        return 0
+    else
+        print_error "Не удалось исправить базу данных"
+        return 1
+    fi
+}
+
 # Настройка базы данных
 setup_database() {
     print_status "Настраиваем базу данных PostgreSQL..."
@@ -875,24 +908,50 @@ setup_database() {
         sudo systemctl enable postgresql
     fi
     
+    # Проверяем подключение к PostgreSQL
+    if ! sudo -u postgres psql -c '\q' 2>/dev/null; then
+        print_error "Не удается подключиться к PostgreSQL"
+        exit 1
+    fi
+    
     # Создаем пользователя и базу данных
     DB_USER="workernet"
     DB_PASSWORD="workernet123"
     DB_NAME="workernet"
     
+    # Удаляем пользователя если существует (для пересоздания)
+    print_status "Удаляем существующего пользователя $DB_USER (если есть)..."
+    sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
+    
+    # Удаляем базу данных если существует (для пересоздания)
+    print_status "Удаляем существующую базу данных $DB_NAME (если есть)..."
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
+    
+    # Создаем пользователя заново
     print_status "Создаем пользователя базы данных: $DB_USER"
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null || {
-        print_warning "Пользователь $DB_USER уже существует, обновляем пароль..."
-        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-    }
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
     
+    # Создаем базу данных заново
     print_status "Создаем базу данных: $DB_NAME"
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || {
-        print_warning "База данных $DB_NAME уже существует"
-    }
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
     
+    # Предоставляем права
+    print_status "Предоставляем права пользователю $DB_USER"
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-    sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;"
+    
+    # Проверяем подключение
+    print_status "Проверяем подключение к базе данных..."
+    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+        print_success "Подключение к базе данных успешно!"
+    else
+        print_warning "Не удается подключиться через localhost, пробуем 127.0.0.1..."
+        if PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+            print_success "Подключение через 127.0.0.1 успешно!"
+        else
+            print_error "Не удается подключиться к базе данных"
+            exit 1
+        fi
+    fi
     
     print_success "База данных настроена"
 }
@@ -944,7 +1003,26 @@ JWT_SECRET_KEY=workernet-jwt-secret-key-2024-development-only
 EOF
     fi
     
+    # Проверяем и исправляем базу данных перед миграциями
+    print_status "Проверяем подключение к базе данных..."
+    if ! python manage.py check --database default >/dev/null 2>&1; then
+        print_error "Django не может подключиться к базе данных!"
+        print_status "Исправляем проблему с базой данных..."
+        
+        # Используем функцию проверки и исправления
+        if ! check_and_fix_database; then
+            print_error "Не удалось исправить проблему с базой данных!"
+            exit 1
+        fi
+    else
+        print_success "Django может подключиться к базе данных"
+    fi
+    
+    # Выполняем миграции
+    print_status "Выполняем миграции Django..."
     python manage.py migrate
+    
+    print_status "Собираем статические файлы..."
     python manage.py collectstatic --noinput
     
     print_success "Миграции выполнены"
@@ -1145,7 +1223,7 @@ main() {
     setup_python_env
     setup_nodejs_env
     
-    # Database and Redis setup
+    # Database and Redis setup (ПЕРЕД миграциями!)
     setup_database
     setup_redis
     
