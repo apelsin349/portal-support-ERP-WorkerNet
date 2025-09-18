@@ -30,6 +30,46 @@ NPM_STRICT_SSL="${NPM_STRICT_SSL:-true}"
 # Installation mode (will be set by check_existing_installation)
 INSTALLATION_MODE=""
 
+# Script version (bump on meaningful changes)
+SCRIPT_VERSION="2025-09-18.1"
+
+# Self-update of this script from GitHub raw if requested
+self_update_script() {
+    # Enable with env WORKERNET_SELF_UPDATE=1 or argument --self-update
+    if [ "${WORKERNET_SELF_UPDATE:-0}" != "1" ]; then
+        return 0
+    fi
+
+    print_status "Проверяем обновления install-ubuntu.sh... (self-update)"
+
+    # Resolve current script path
+    SCRIPT_PATH="$0"
+    if command -v readlink >/dev/null 2>&1; then
+        SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")"
+    fi
+
+    RAW_BRANCH="${REPO_BRANCH:-main}"
+    RAW_URL="${WORKERNET_RAW_SCRIPT_URL:-https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/${RAW_BRANCH}/scripts/install-ubuntu.sh}"
+
+    TMP_FILE="/tmp/install-ubuntu.sh.$$"
+    if curl -fsSL "$RAW_URL" -o "$TMP_FILE"; then
+        if cmp -s "$TMP_FILE" "$SCRIPT_PATH"; then
+            print_status "Скрипт установки уже актуален (версия: $SCRIPT_VERSION)"
+            rm -f "$TMP_FILE"
+        else
+            print_status "Найдена новая версия скрипта — обновляем..."
+            chmod +x "$TMP_FILE" 2>/dev/null || true
+            # Try to preserve owner/permissions
+            sudo cp -f "$TMP_FILE" "$SCRIPT_PATH" 2>/dev/null || cp -f "$TMP_FILE" "$SCRIPT_PATH"
+            rm -f "$TMP_FILE"
+            print_success "Скрипт обновлён. Перезапуск..."
+            exec bash "$SCRIPT_PATH" "$@"
+        fi
+    else
+        print_warning "Не удалось загрузить обновление скрипта по адресу: $RAW_URL"
+    fi
+}
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -1646,6 +1686,11 @@ main() {
     print_status "Запуск установки WorkerNet Portal для Ubuntu 24.04 LTS..."
     echo
     
+    # Опционально: самообновление скрипта (выполнится до любых действий)
+    if [ "${WORKERNET_SELF_UPDATE:-0}" = "1" ] || [ "${1:-}" = "--self-update" ]; then
+        self_update_script "$@"
+    fi
+
     # Порядок выполнения:
     # 1. Проверка существующей установки (ПЕРВЫМ ДЕЛОМ!)
     # 2. Определение режима установки (update/fresh)
