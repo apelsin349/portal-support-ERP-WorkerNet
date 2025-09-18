@@ -58,7 +58,6 @@ def _app_exists(dotted: str) -> bool:
         return False
 
 _LOCAL_APP_CANDIDATES = [
-    # 'app.apps.AppConfig',  # Исключаем, чтобы избежать дублирования
     'app.core',
     'app.api',
     'app.utils',
@@ -67,7 +66,7 @@ _LOCAL_APP_CANDIDATES = [
 LOCAL_APPS = [name for name in _LOCAL_APP_CANDIDATES if _app_exists(name)]
 
 # Размещаем корневое приложение 'app' раньше admin, чтобы кастомная модель пользователя была доступна
-INSTALLED_APPS = ['app.apps.AppConfig'] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = ['app'] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',

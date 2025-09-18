@@ -4,6 +4,7 @@ from django.apps import AppConfig
 class AppConfig(AppConfig):
     name = 'app'
     verbose_name = 'Приложение WorkerNet'
+    default_auto_field = 'django.db.models.BigAutoField'
 
     def ready(self):
         # Импортируем модули моделей, чтобы Django зарегистрировал их
