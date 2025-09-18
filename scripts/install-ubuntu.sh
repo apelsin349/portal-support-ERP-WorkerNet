@@ -449,37 +449,6 @@ verify_dependencies() {
     fi
 }
 
-# Настройка PostgreSQL
-configure_postgresql() {
-    print_status "Настраиваем PostgreSQL..."
-    
-    # Set password for postgres user
-    sudo -u postgres psql -c "ALTER USER postgres PASSWORD '${WORKERNET_POSTGRES_SUPER_PASS}';" || true
-    
-    # Create user if not exists and set password
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='workernet'" | grep -q 1; then
-        sudo -u postgres psql -c "CREATE USER workernet WITH PASSWORD '${WORKERNET_DB_PASS}';"
-    else
-        sudo -u postgres psql -c "ALTER USER workernet WITH PASSWORD '${WORKERNET_DB_PASS}';" || true
-    fi
-
-    # Create databases if not exist
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='workernet'" | grep -q 1; then
-        sudo -u postgres createdb workernet
-    fi
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='workernet_test'" | grep -q 1; then
-        sudo -u postgres createdb workernet_test
-    fi
-
-    # Grants (idempotent)
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE workernet TO workernet;" || true
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE workernet_test TO workernet;" || true
-    
-    # Enable auto-start on boot
-    sudo systemctl enable postgresql || true
-    print_success "PostgreSQL настроен"
-}
-
 # Настройка Redis
 configure_redis() {
     print_status "Настраиваем Redis..."
@@ -945,66 +914,34 @@ setup_database() {
         exit 1
     fi
     
-    # Создаем пользователя и базу данных
+    # Создаем пользователя и базу данных (идемпотентно)
     DB_USER="workernet"
     DB_PASSWORD="workernet123"
     DB_NAME="workernet"
     
-    # Удаляем пользователя если существует (для пересоздания)
-    print_status "Удаляем существующего пользователя $DB_USER (если есть)..."
-    
-    # Проверяем, существует ли пользователь
-    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-        print_status "Пользователь $DB_USER существует, удаляем..."
-        
-        # Завершаем все активные сессии пользователя
-        sudo -u postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '$DB_USER';" 2>/dev/null || true
-        sleep 1
-        
-        # Удаляем все объекты, принадлежащие пользователю
-        sudo -u postgres psql -c "REASSIGN OWNED BY $DB_USER TO postgres;" 2>/dev/null || true
-        sudo -u postgres psql -c "DROP OWNED BY $DB_USER;" 2>/dev/null || true
-        
-        # Удаляем пользователя
-        sudo -u postgres psql -c "DROP USER $DB_USER;" 2>/dev/null || true
-        sleep 2
-        
-        # Проверяем, что пользователь действительно удален
-        if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-            print_warning "Не удалось удалить пользователя $DB_USER, продолжаем с существующим..."
-        else
-            print_status "Пользователь $DB_USER успешно удален"
-        fi
-    else
-        print_status "Пользователь $DB_USER не существует"
-    fi
-    
-    # Удаляем базу данных если существует (для пересоздания)
-    print_status "Удаляем существующую базу данных $DB_NAME (если есть)..."
-    sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
-    
-    # Создаем пользователя заново (с проверкой на существование)
-    print_status "Создаем пользователя базы данных: $DB_USER"
+    # Создаем пользователя (идемпотентно)
+    print_status "Создаем/обновляем пользователя базы данных: $DB_USER"
     if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
-        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
-        print_status "Пользователь $DB_USER создан"
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB;"
+        print_success "Пользователь $DB_USER создан"
     else
-        print_status "Пользователь $DB_USER уже существует, обновляем пароль и права..."
-        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB SUPERUSER;"
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB;" || true
+        print_status "Пользователь $DB_USER уже существует, пароль обновлен"
     fi
     
-    # Создаем базу данных заново (с проверкой на существование)
+    # Создаем базу данных (идемпотентно)
     print_status "Создаем базу данных: $DB_NAME"
     if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
         sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+        print_success "База данных $DB_NAME создана"
     else
-        print_status "База данных $DB_NAME уже существует, обновляем владельца..."
-        sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;"
+        print_status "База данных $DB_NAME уже существует"
     fi
     
-    # Предоставляем права
-    print_status "Предоставляем права пользователю $DB_USER"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    # Настраиваем права доступа (идемпотентно)
+    print_status "Настраиваем права доступа..."
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || true
+    sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;" || true
     
     # Проверяем подключение
     print_status "Проверяем подключение к базе данных..."
@@ -1169,9 +1106,11 @@ After=network.target postgresql.service redis.service
 Type=simple
 User=$USER
 WorkingDirectory=$WORKERNET_ROOT/backend
-Environment=PATH=$WORKERNET_ROOT/backend/venv/bin
+Environment=PATH=$WORKERNET_ROOT/backend/venv/bin:/usr/bin:/bin
+Environment=DJANGO_SETTINGS_MODULE=config.settings
 ExecStart=$WORKERNET_ROOT/backend/venv/bin/python manage.py runserver 0.0.0.0:8000
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -1187,19 +1126,40 @@ After=network.target workernet-backend.service
 Type=simple
 User=$USER
 WorkingDirectory=$WORKERNET_ROOT/frontend
-Environment=PATH=/usr/bin:/bin
+Environment=PATH=/usr/bin:/bin:/usr/local/bin
+Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm start
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
+    # Проверяем, что виртуальное окружение backend существует
+    if [ ! -f "$WORKERNET_ROOT/backend/venv/bin/python" ]; then
+        print_error "Виртуальное окружение backend не найдено: $WORKERNET_ROOT/backend/venv/bin/python"
+        print_status "Создаем виртуальное окружение..."
+        cd "$WORKERNET_ROOT/backend"
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt || true
+    fi
+    
     # Reload systemd
     sudo systemctl daemon-reload
     # Enable on boot
     sudo systemctl enable workernet-backend || true
     sudo systemctl enable workernet-frontend || true
+    
+    # Проверяем, что зависимости frontend установлены
+    if [ -d "$WORKERNET_ROOT/frontend" ]; then
+        cd "$WORKERNET_ROOT/frontend"
+        if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+            print_status "Устанавливаем зависимости frontend перед запуском сервиса..."
+            npm install --omit=optional --no-audit --no-fund || true
+        fi
+    fi
     
     print_success "Сервисы systemd настроены"
 }
@@ -1257,6 +1217,10 @@ show_final_info() {
     echo "=== Логи ==="
     echo "Бэкенд: sudo journalctl -u workernet-backend -f"
     echo "Фронтенд: sudo journalctl -u workernet-frontend -f"
+    echo
+    echo "=== Проверка сервисов ==="
+    echo "Список сервисов: sudo systemctl list-units --type=service | grep workernet"
+    echo "Статус всех: sudo systemctl status workernet-backend workernet-frontend"
     echo
     echo "=== Следующие шаги ==="
     echo "1. Откройте приложение: http://localhost:3000"

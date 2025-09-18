@@ -4,8 +4,8 @@
   "description": "Frontend for Portal Support ERP WorkerNet",
   "main": "index.js",
   "scripts": {
-    "start": "echo 'Frontend server starting...' && node -e 'console.log(\"Frontend placeholder server running on port 3000\")'",
-    "dev": "echo 'Development server starting...'",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "build": "echo 'Building frontend...'",
     "test": "echo 'Running tests...'"
   },
