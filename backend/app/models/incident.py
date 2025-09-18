@@ -95,7 +95,7 @@ class Incident(models.Model):
     custom_fields = models.JSONField(default=dict, verbose_name=_("Пользовательские поля"))
     
     # Теги
-    tags = models.ManyToManyField('ticket.Tag', blank=True, verbose_name=_("Теги"))
+    tags = models.ManyToManyField('app.Tag', blank=True, verbose_name=_("Теги"))
     
     class Meta:
         verbose_name = _("Инцидент")

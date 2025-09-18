@@ -102,7 +102,7 @@ class AutomationExecution(models.Model):
     
     # Контекст выполнения
     ticket = models.ForeignKey(
-        'ticket.Ticket',
+        'app.Ticket',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -151,7 +151,7 @@ class AutomationCondition(models.Model):
     rule = models.ForeignKey(
         AutomationRule,
         on_delete=models.CASCADE,
-        related_name='conditions',
+        related_name='rule_conditions',
         verbose_name=_("Правило")
     )
     
@@ -205,7 +205,7 @@ class AutomationAction(models.Model):
     rule = models.ForeignKey(
         AutomationRule,
         on_delete=models.CASCADE,
-        related_name='actions',
+        related_name='rule_actions',
         verbose_name=_("Правило")
     )
     

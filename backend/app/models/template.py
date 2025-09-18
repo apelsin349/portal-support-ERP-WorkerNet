@@ -60,7 +60,7 @@ class ResponseTemplate(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
     # Теги
-    tags = models.ManyToManyField('ticket.Tag', blank=True, verbose_name=_("Теги"))
+    tags = models.ManyToManyField('app.Tag', blank=True, verbose_name=_("Теги"))
     
     class Meta:
         verbose_name = _("Шаблон ответа")
@@ -131,7 +131,7 @@ class TemplateUsage(models.Model):
     
     # Контекст использования
     ticket = models.ForeignKey(
-        'ticket.Ticket',
+        'app.Ticket',
         on_delete=models.CASCADE,
         null=True,
         blank=True,

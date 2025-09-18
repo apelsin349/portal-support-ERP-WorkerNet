@@ -23,7 +23,7 @@ class TicketRating(models.Model):
     
     # Связи
     ticket = models.OneToOneField(
-        'ticket.Ticket',
+        'app.Ticket',
         on_delete=models.CASCADE,
         related_name='rating',
         verbose_name=_("Тикет")
@@ -99,7 +99,7 @@ class AgentRating(models.Model):
         verbose_name=_("Оценил")
     )
     ticket = models.ForeignKey(
-        'ticket.Ticket',
+        'app.Ticket',
         on_delete=models.CASCADE,
         related_name='agent_ratings',
         verbose_name=_("Тикет")
@@ -360,7 +360,7 @@ class RatingSurveyResponse(models.Model):
         verbose_name=_("Пользователь")
     )
     ticket = models.ForeignKey(
-        'ticket.Ticket',
+        'app.Ticket',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
