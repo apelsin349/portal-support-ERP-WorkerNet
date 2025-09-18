@@ -110,90 +110,211 @@ class Migration(migrations.Migration):
             ],
             database_operations=[],
         ),
-        # TicketComment model
-        migrations.CreateModel(
-            name='TicketComment',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('content', models.TextField(verbose_name='Содержимое')),
-                ('is_internal', models.BooleanField(default=False, verbose_name='Внутренний')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
-                ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_comments', to='app.user', verbose_name='Автор')),
-                ('ticket', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comments', to='app.ticket', verbose_name='Тикет')),
-            ],
-            options={
-                'verbose_name': 'Комментарий к тикету',
-                'verbose_name_plural': 'Комментарии к тикету',
-                'db_table': 'ticket_comments',
-                'ordering': ['created_at'],
-            },
+        # TicketComment model (safe create)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS ticket_comments (
+                    id BIGSERIAL PRIMARY KEY,
+                    content TEXT NOT NULL,
+                    is_internal BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS ticket_comments;
+                """
+            ),
         ),
-        # TicketAttachment model
-        migrations.CreateModel(
-            name='TicketAttachment',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(upload_to='tickets/attachments/', verbose_name='Файл')),
-                ('filename', models.CharField(max_length=255, verbose_name='Имя файла')),
-                ('file_size', models.BigIntegerField(verbose_name='Размер файла')),
-                ('mime_type', models.CharField(max_length=100, verbose_name='MIME-тип')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
-                ('ticket', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attachments', to='app.ticket', verbose_name='Тикет')),
-                ('uploaded_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_attachments', to='app.user', verbose_name='Загрузил')),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='TicketComment',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('content', models.TextField(verbose_name='Содержимое')),
+                        ('is_internal', models.BooleanField(default=False, verbose_name='Внутренний')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+                        ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
+                        ('author', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_comments', to='app.user', verbose_name='Автор')),
+                        ('ticket', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='comments', to='app.ticket', verbose_name='Тикет')),
+                    ],
+                    options={
+                        'verbose_name': 'Комментарий к тикету',
+                        'verbose_name_plural': 'Комментарии к тикету',
+                        'db_table': 'ticket_comments',
+                        'ordering': ['created_at'],
+                    },
+                ),
             ],
-            options={
-                'verbose_name': 'Вложение тикета',
-                'verbose_name_plural': 'Вложения тикетов',
-                'db_table': 'ticket_attachments',
-            },
+            database_operations=[],
         ),
-        # SLA model
-        migrations.CreateModel(
-            name='SLA',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, verbose_name='Название')),
-                ('description', models.TextField(blank=True, verbose_name='Описание')),
-                ('response_time', models.IntegerField(verbose_name='Время ответа (часы)')),
-                ('resolution_time', models.IntegerField(verbose_name='Время решения (часы)')),
-                ('priority', models.CharField(choices=[('low', 'Низкий'), ('medium', 'Средний'), ('high', 'Высокий'), ('urgent', 'Срочный'), ('critical', 'Критический')], max_length=20, verbose_name='Приоритет')),
-                ('is_active', models.BooleanField(default=True, verbose_name='Активен')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='slas', to='app.tenant', verbose_name='Арендатор')),
-            ],
-            options={
-                'verbose_name': 'SLA',
-                'verbose_name_plural': 'SLA',
-                'db_table': 'slas',
-            },
+        # TicketAttachment model (safe create)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS ticket_attachments (
+                    id BIGSERIAL PRIMARY KEY,
+                    filename VARCHAR(255) NOT NULL,
+                    file_size BIGINT NOT NULL,
+                    mime_type VARCHAR(100) NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS ticket_attachments;
+                """
+            ),
         ),
-        # TicketSLA model
-        migrations.CreateModel(
-            name='TicketSLA',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('first_response_at', models.DateTimeField(blank=True, null=True, verbose_name='Время первого ответа')),
-                ('resolution_at', models.DateTimeField(blank=True, null=True, verbose_name='Время решения')),
-                ('is_breached', models.BooleanField(default=False, verbose_name='SLA нарушен')),
-                ('breach_reason', models.TextField(blank=True, verbose_name='Причина нарушения')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
-                ('sla', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_slas', to='app.sla', verbose_name='SLA')),
-                ('ticket', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='sla_tracking', to='app.ticket', verbose_name='Ticket')),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='TicketAttachment',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('file', models.FileField(upload_to='tickets/attachments/', verbose_name='Файл')),
+                        ('filename', models.CharField(max_length=255, verbose_name='Имя файла')),
+                        ('file_size', models.BigIntegerField(verbose_name='Размер файла')),
+                        ('mime_type', models.CharField(max_length=100, verbose_name='MIME-тип')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+                        ('ticket', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attachments', to='app.ticket', verbose_name='Тикет')),
+                        ('uploaded_by', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_attachments', to='app.user', verbose_name='Загрузил')),
+                    ],
+                    options={
+                        'verbose_name': 'Вложение тикета',
+                        'verbose_name_plural': 'Вложения тикетов',
+                        'db_table': 'ticket_attachments',
+                    },
+                ),
             ],
-            options={
-                'verbose_name': 'SLA тикета',
-                'verbose_name_plural': 'SLA тикетов',
-                'db_table': 'ticket_slas',
-            },
+            database_operations=[],
+        ),
+        # SLA model (safe create)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS slas (
+                    id BIGSERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT NOT NULL DEFAULT '',
+                    response_time INTEGER NOT NULL,
+                    resolution_time INTEGER NOT NULL,
+                    priority VARCHAR(20) NOT NULL,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS slas;
+                """
+            ),
+        ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='SLA',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('name', models.CharField(max_length=100, verbose_name='Название')),
+                        ('description', models.TextField(blank=True, verbose_name='Описание')),
+                        ('response_time', models.IntegerField(verbose_name='Время ответа (часы)')),
+                        ('resolution_time', models.IntegerField(verbose_name='Время решения (часы)')),
+                        ('priority', models.CharField(choices=[('low', 'Низкий'), ('medium', 'Средний'), ('high', 'Высокий'), ('urgent', 'Срочный'), ('critical', 'Критический')], max_length=20, verbose_name='Приоритет')),
+                        ('is_active', models.BooleanField(default=True, verbose_name='Активен')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+                        ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
+                        ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='slas', to='app.tenant', verbose_name='Арендатор')),
+                    ],
+                    options={
+                        'verbose_name': 'SLA',
+                        'verbose_name_plural': 'SLA',
+                        'db_table': 'slas',
+                    },
+                ),
+            ],
+            database_operations=[],
+        ),
+        # TicketSLA model (safe create)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS ticket_slas (
+                    id BIGSERIAL PRIMARY KEY,
+                    first_response_at TIMESTAMPTZ,
+                    resolution_at TIMESTAMPTZ,
+                    is_breached BOOLEAN NOT NULL DEFAULT FALSE,
+                    breach_reason TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS ticket_slas;
+                """
+            ),
+        ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='TicketSLA',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('first_response_at', models.DateTimeField(blank=True, null=True, verbose_name='Время первого ответа')),
+                        ('resolution_at', models.DateTimeField(blank=True, null=True, verbose_name='Время решения')),
+                        ('is_breached', models.BooleanField(default=False, verbose_name='SLA нарушен')),
+                        ('breach_reason', models.TextField(blank=True, verbose_name='Причина нарушения')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Создано')),
+                        ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Обновлено')),
+                        ('sla', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_slas', to='app.sla', verbose_name='SLA')),
+                        ('ticket', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='sla_tracking', to='app.ticket', verbose_name='Ticket')),
+                    ],
+                    options={
+                        'verbose_name': 'SLA тикета',
+                        'verbose_name_plural': 'SLA тикетов',
+                        'db_table': 'ticket_slas',
+                    },
+                ),
+            ],
+            database_operations=[],
         ),
         # Many-to-many relationships
-        migrations.AddField(
-            model_name='ticket',
-            name='tags',
-            field=models.ManyToManyField(blank=True, to='app.tag', verbose_name='Теги'),
+        # Many-to-many Ticket.tags (safe create m2m table)
+        migrations.RunSQL(
+            sql=(
+                """
+                CREATE TABLE IF NOT EXISTS app_ticket_tags (
+                    id BIGSERIAL PRIMARY KEY,
+                    ticket_id BIGINT NOT NULL,
+                    tag_id BIGINT NOT NULL,
+                    UNIQUE(ticket_id, tag_id)
+                );
+                """
+            ),
+            reverse_sql=(
+                """
+                DROP TABLE IF EXISTS app_ticket_tags;
+                """
+            ),
+        ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='ticket',
+                    name='tags',
+                    field=models.ManyToManyField(blank=True, to='app.tag', verbose_name='Теги'),
+                ),
+            ],
+            database_operations=[],
         ),
         # Constraints
         migrations.AddConstraint(
