@@ -29,6 +29,43 @@ print_error() {
     echo -e "${RED}[ОШИБКА]${NC} $1"
 }
 
+# Версия скрипта
+SCRIPT_VERSION="2025-09-18.1"
+
+# Самообновление скрипта с GitHub raw
+self_update_script() {
+  if [ "${WORKERNET_SELF_UPDATE:-0}" != "1" ] && [ "${1:-}" != "--self-update" ]; then
+    return 0
+  fi
+
+  print_status "Проверяем обновления quick-update.sh... (self-update)"
+
+  SCRIPT_PATH="$0"
+  if command -v readlink >/dev/null 2>&1; then
+    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")"
+  fi
+
+  RAW_BRANCH="${WORKERNET_BRANCH:-main}"
+  RAW_URL="${WORKERNET_RAW_QUICK_URL:-https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/${RAW_BRANCH}/scripts/quick-update.sh}"
+
+  TMP_FILE="/tmp/quick-update.sh.$$"
+  if curl -fsSL "$RAW_URL" -o "$TMP_FILE"; then
+    if cmp -s "$TMP_FILE" "$SCRIPT_PATH"; then
+      print_status "Скрипт quick-update актуален (версия: $SCRIPT_VERSION)"
+      rm -f "$TMP_FILE"
+    else
+      print_status "Найдена новая версия quick-update — обновляем..."
+      chmod +x "$TMP_FILE" 2>/dev/null || true
+      sudo cp -f "$TMP_FILE" "$SCRIPT_PATH" 2>/dev/null || cp -f "$TMP_FILE" "$SCRIPT_PATH"
+      rm -f "$TMP_FILE"
+      print_success "Скрипт обновлён. Перезапуск..."
+      exec bash "$SCRIPT_PATH" "$@"
+    fi
+  else
+    print_warning "Не удалось загрузить обновление quick-update по адресу: $RAW_URL"
+  fi
+}
+
 # Находим директорию проекта
 find_project_directory() {
     if [ -d "/opt/workernet" ]; then
@@ -201,6 +238,11 @@ show_status() {
 main() {
     print_status "Запуск быстрого обновления WorkerNet Portal..."
     echo
+
+    # Самообновление (при запросе)
+    if [ "${WORKERNET_SELF_UPDATE:-0}" = "1" ] || [ "${1:-}" = "--self-update" ]; then
+      self_update_script "$@"
+    fi
     
     # Находим директорию проекта
     find_project_directory
@@ -267,6 +309,10 @@ case "${1:-}" in
         run_migrations
         start_services
         show_status
+        ;;
+    --self-update)
+        # Явный вызов самообновления
+        WORKERNET_SELF_UPDATE=1 exec bash "$0" "$@"
         ;;
     *)
         main "$@"

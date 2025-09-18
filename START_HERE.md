@@ -176,6 +176,20 @@ WORKERNET_INSTALL_MONITORING=0 ./scripts/install-ubuntu.sh
 ```bash
 sudo systemctl status prometheus grafana-server
 ```
+
+### Самообновление скриптов
+
+```bash
+# Обновить install-ubuntu.sh перед запуском
+WORKERNET_SELF_UPDATE=1 bash scripts/install-ubuntu.sh
+# или
+bash scripts/install-ubuntu.sh --self-update
+
+# Обновить quick-update.sh перед запуском
+WORKERNET_SELF_UPDATE=1 bash scripts/quick-update.sh
+# или
+bash scripts/quick-update.sh --self-update
+```
 - **Kibana**: http://localhost:5601
 - **Celery Flower**: http://localhost:5555
 

@@ -30,6 +30,11 @@ export WORKERNET_NONINTERACTIVE=1
 # Автоматическое обновление
 export WORKERNET_AUTO_UPDATE=1
 ./scripts/install-ubuntu.sh
+
+# Самообновление скрипта перед запуском
+WORKERNET_SELF_UPDATE=1 ./scripts/install-ubuntu.sh
+# или
+./scripts/install-ubuntu.sh --self-update
 ```
 
 **Режимы работы**:
@@ -62,6 +67,11 @@ export WORKERNET_AUTO_UPDATE=1
 # Неинтерактивный режим
 export WORKERNET_NONINTERACTIVE=1
 ./scripts/quick-update.sh
+
+# Самообновление скрипта перед запуском
+WORKERNET_SELF_UPDATE=1 ./scripts/quick-update.sh
+# или
+./scripts/quick-update.sh --self-update
 ```
 
 ### 3. `start-docker.sh` - Запуск в Docker

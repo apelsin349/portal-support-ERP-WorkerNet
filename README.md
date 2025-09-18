@@ -2232,6 +2232,27 @@ curl -I http://localhost:9090
 curl -I http://localhost:3000
 ```
 
+### Самообновление скриптов
+
+Оба скрипта поддерживают self-update из GitHub raw:
+
+```bash
+# install-ubuntu.sh
+WORKERNET_SELF_UPDATE=1 bash scripts/install-ubuntu.sh
+# или
+bash scripts/install-ubuntu.sh --self-update
+
+# quick-update.sh
+WORKERNET_SELF_UPDATE=1 bash scripts/quick-update.sh
+# или
+bash scripts/quick-update.sh --self-update
+
+# Кастомная ветка или URL
+WORKERNET_BRANCH=main WORKERNET_SELF_UPDATE=1 bash scripts/install-ubuntu.sh
+WORKERNET_RAW_SCRIPT_URL=https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh \
+  WORKERNET_SELF_UPDATE=1 bash scripts/install-ubuntu.sh
+```
+
 **Мобильное приложение:**
 - **Android**: Запуск через Android Studio или `npx react-native run-android`
 - **iOS**: Запуск через Xcode или `npx react-native run-ios`
