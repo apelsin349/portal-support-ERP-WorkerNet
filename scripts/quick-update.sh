@@ -406,6 +406,12 @@ build_frontend() {
         
         # Собираем фронтенд для production
         print_status "Собираем фронтенд для production..."
+        
+        # Исправляем права доступа к webpack
+        if [ -f "node_modules/.bin/webpack" ]; then
+            chmod +x node_modules/.bin/webpack 2>/dev/null || true
+        fi
+        
         if npm run build; then
             print_success "Фронтенд собран успешно"
         else
@@ -465,8 +471,15 @@ BEGIN
 END $$;
 EOF
             
-            # Помечаем проблемную миграцию как выполненную
-            python manage.py migrate app 0008 --fake 2>/dev/null || true
+            # Проверяем конфликты миграций и исправляем их
+            print_status "Проверяем конфликты миграций..."
+            if python manage.py showmigrations app 2>/dev/null | grep -q "\[ \] 0008"; then
+                print_status "Обнаружен конфликт миграций, исправляем..."
+                # Помечаем все проблемные миграции как выполненные
+                python manage.py migrate app 0008 --fake 2>/dev/null || true
+                python manage.py migrate app 0009 --fake 2>/dev/null || true
+                python manage.py migrate app 0010 --fake 2>/dev/null || true
+            fi
             
             # Выполняем миграции
             python manage.py migrate --fake-initial || { print_error "Ошибка выполнения миграций"; return 1; }
