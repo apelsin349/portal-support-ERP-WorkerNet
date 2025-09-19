@@ -1147,6 +1147,12 @@ build_frontend() {
     
     cd "$FRONTEND_DIR"
     
+    # Устанавливаем зависимости для генерации иконок
+    if [ -f "scripts/install-icon-deps.js" ]; then
+        print_status "Устанавливаем зависимости для генерации иконок..."
+        node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+    fi
+    
     # Генерируем иконки для PWA
     if [ -f "scripts/generate-icons.js" ]; then
         print_status "Генерируем иконки для PWA..."
