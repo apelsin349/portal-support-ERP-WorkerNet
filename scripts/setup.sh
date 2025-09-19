@@ -52,7 +52,7 @@ check_dependencies() {
     fi
     
     # Check Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
         print_error "Docker Compose не установлен. Пожалуйста, установите Docker Compose."
         exit 1
     fi
@@ -132,7 +132,11 @@ generate_secrets() {
 build_images() {
     print_status "Собираем Docker-образы..."
     
-    docker-compose build --no-cache
+    if command -v docker-compose &> /dev/null; then
+        docker-compose build --no-cache
+    else
+        docker compose build --no-cache
+    fi
     
     print_status "Docker-образы собраны ✓"
 }
@@ -141,7 +145,11 @@ build_images() {
 start_services() {
     print_status "Запускаем сервисы..."
     
-    docker-compose up -d
+    if command -v docker-compose &> /dev/null; then
+        docker-compose up -d
+    else
+        docker compose up -d
+    fi
     
     print_status "Сервисы запущены ✓"
 }
@@ -152,14 +160,30 @@ wait_for_services() {
     
     # Wait for PostgreSQL
     print_status "Ожидание PostgreSQL..."
-    until docker-compose exec -T postgres pg_isready -U workernet -d workernet; do
+    if command -v docker-compose &> /dev/null; then
+        until docker-compose exec -T postgres pg_isready -U workernet -d workernet; do
+            sleep 2
+        done
+    else
+        until docker compose exec -T postgres pg_isready -U workernet -d workernet; do
+            sleep 2
+        done
+    fi
         sleep 2
     done
     print_status "PostgreSQL готов ✓"
     
     # Wait for Redis
     print_status "Ожидание Redis..."
-    until docker-compose exec -T redis redis-cli ping; do
+    if command -v docker-compose &> /dev/null; then
+        until docker-compose exec -T redis redis-cli ping; do
+            sleep 2
+        done
+    else
+        until docker compose exec -T redis redis-cli ping; do
+            sleep 2
+        done
+    fi
         sleep 2
     done
     print_status "Redis готов ✓"
@@ -183,7 +207,11 @@ wait_for_services() {
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
     
-    docker-compose exec backend python manage.py migrate --fake-initial
+    if command -v docker-compose &> /dev/null; then
+        docker-compose exec backend python manage.py migrate --fake-initial
+    else
+        docker compose exec backend python manage.py migrate --fake-initial
+    fi
     
     print_status "Миграции выполнены ✓"
 }
@@ -193,7 +221,21 @@ create_superuser() {
     print_status "Создаём суперпользователя..."
     
     # Check if superuser already exists
-    if docker-compose exec -T backend python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); print('Superuser exists' if User.objects.filter(is_superuser=True).exists() else 'No superuser')" | grep -q "Superuser exists"; then
+    if command -v docker-compose &> /dev/null; then
+        if docker-compose exec -T backend python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); print('Superuser exists' if User.objects.filter(is_superuser=True).exists() else 'No superuser')" | grep -q "Superuser exists"; then
+            print_status "Суперпользователь уже существует ✓"
+        else
+            print_warning "Создайте суперпользователя вручную:"
+            echo "docker-compose exec backend python manage.py createsuperuser"
+        fi
+    else
+        if docker compose exec -T backend python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); print('Superuser exists' if User.objects.filter(is_superuser=True).exists() else 'No superuser')" | grep -q "Superuser exists"; then
+            print_status "Суперпользователь уже существует ✓"
+        else
+            print_warning "Создайте суперпользователя вручную:"
+            echo "docker compose exec backend python manage.py createsuperuser"
+        fi
+    fi
         print_status "Суперпользователь уже существует ✓"
     else
         print_warning "Создайте суперпользователя вручную:"
@@ -207,7 +249,11 @@ load_initial_data() {
     
     # Check if initial data exists
     if [ -f "fixtures/initial_data.json" ]; then
-        docker-compose exec backend python manage.py loaddata fixtures/initial_data.json
+        if command -v docker-compose &> /dev/null; then
+            docker-compose exec backend python manage.py loaddata fixtures/initial_data.json
+        else
+            docker compose exec backend python manage.py loaddata fixtures/initial_data.json
+        fi
         print_status "Начальные данные загружены ✓"
     else
         print_warning "Файл начальных данных не найден, пропускаем..."
@@ -218,7 +264,11 @@ load_initial_data() {
 create_search_indexes() {
     print_status "Создаём поисковые индексы..."
     
-    docker-compose exec backend python manage.py search_index --rebuild
+    if command -v docker-compose &> /dev/null; then
+        docker-compose exec backend python manage.py search_index --rebuild
+    else
+        docker compose exec backend python manage.py search_index --rebuild
+    fi
     
     print_status "Поисковые индексы созданы ✓"
 }
@@ -238,10 +288,10 @@ show_urls() {
     echo "  Mailhog:       http://localhost:8025"
     echo ""
     echo "Полезные команды:"
-    echo "  Логи:          docker-compose logs -f [service]"
-    echo "  Остановить:    docker-compose down"
-    echo "  Перезапуск:    docker-compose restart [service]"
-    echo "  Shell:         docker-compose exec backend python manage.py shell"
+    echo "  Логи:          docker compose logs -f [service] (или docker-compose)"
+    echo "  Остановить:    docker compose down (или docker-compose)"
+    echo "  Перезапуск:    docker compose restart [service] (или docker-compose)"
+    echo "  Shell:         docker compose exec backend python manage.py shell (или docker-compose)"
     echo ""
 }
 

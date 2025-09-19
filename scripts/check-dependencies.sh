@@ -86,6 +86,8 @@ if [ -f "docker-compose.yml" ]; then
     # Check if docker-compose is available
     if command -v docker-compose &> /dev/null; then
         docker-compose config --quiet && print_status "✅ Docker Compose конфигурация корректна" "$GREEN" || print_status "❌ Ошибки в Docker Compose конфигурации" "$RED"
+    elif docker compose version &> /dev/null; then
+        docker compose config --quiet && print_status "✅ Docker Compose конфигурация корректна" "$GREEN" || print_status "❌ Ошибки в Docker Compose конфигурации" "$RED"
     else
         print_status "⚠️  docker-compose не найден" "$YELLOW"
     fi
