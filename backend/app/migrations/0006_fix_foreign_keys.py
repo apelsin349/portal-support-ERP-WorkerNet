@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
 
                 ALTER TABLE app_knowledgearticle_tags 
                 ADD CONSTRAINT fk_knowledgearticle_tags_tag 
-                FOREIGN KEY (tag_id) REFERENCES app_tag(id) ON DELETE CASCADE;
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE;
 
                 -- Add missing foreign key constraints for Automation
                 ALTER TABLE automation_rules 
@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
 
                 ALTER TABLE automation_executions 
                 ADD CONSTRAINT fk_automation_executions_ticket 
-                FOREIGN KEY (ticket_id) REFERENCES app_ticket(id) ON DELETE CASCADE;
+                FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE;
 
                 ALTER TABLE automation_conditions 
                 ADD CONSTRAINT fk_automation_conditions_rule 
