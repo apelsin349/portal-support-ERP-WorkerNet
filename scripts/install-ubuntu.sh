@@ -1534,7 +1534,6 @@ update_installation() {
         if [ -f "$WORKERNET_ROOT/requirements-dev.txt" ]; then
             pip install -r "$WORKERNET_ROOT/requirements-dev.txt"
         fi
-        fi
         print_success "Зависимости Python обновлены"
     fi
     
