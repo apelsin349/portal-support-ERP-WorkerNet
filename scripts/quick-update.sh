@@ -141,6 +141,11 @@ select_branch() {
     # Если ветка указана через аргумент или переменную окружения
     if [ -n "$target_branch" ]; then
         SELECTED_BRANCH=$(echo "$target_branch" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        # Проверяем, что название ветки не пустое после очистки
+        if [ -z "$SELECTED_BRANCH" ] || [ "$SELECTED_BRANCH" = "" ]; then
+            print_error "Название ветки пустое или содержит только пробелы"
+            return 1
+        fi
         print_status "Выбрана ветка: $SELECTED_BRANCH"
         return 0
     fi
@@ -148,6 +153,11 @@ select_branch() {
     # Если ветка указана через переменную окружения
     if [ -n "${WORKERNET_BRANCH:-}" ]; then
         SELECTED_BRANCH=$(echo "$WORKERNET_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        # Проверяем, что название ветки не пустое после очистки
+        if [ -z "$SELECTED_BRANCH" ] || [ "$SELECTED_BRANCH" = "" ]; then
+            print_error "Название ветки из переменной окружения пустое или содержит только пробелы"
+            return 1
+        fi
         print_status "Выбрана ветка из переменной окружения: $SELECTED_BRANCH"
         return 0
     fi
@@ -160,7 +170,7 @@ select_branch() {
     
     # Получаем список доступных веток
     local available_branches
-    available_branches=$(git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u)
+    available_branches=$(git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u)
     
     # Если неинтерактивный режим, используем текущую ветку
     if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
@@ -178,7 +188,7 @@ select_branch() {
     
     # Показываем локальные ветки
     local local_branches
-    local_branches=$(git branch | sed 's/^\*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v "^$")
+    local_branches=$(git branch | sed 's/^\*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v "^$" | grep -v '^[[:space:]]*$')
     if [ -n "$local_branches" ]; then
         echo "Локальные ветки:"
         echo "$local_branches" | sed 's/^/  - /'
@@ -196,14 +206,15 @@ select_branch() {
         
         # Если введен номер
         if [[ "$choice" =~ ^[0-9]+$ ]]; then
-            SELECTED_BRANCH=$(echo "$available_branches" | sed -n "${choice}p")
-            if [ -n "$SELECTED_BRANCH" ]; then
+            SELECTED_BRANCH=$(echo "$available_branches" | sed -n "${choice}p" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+            if [ -n "$SELECTED_BRANCH" ] && [ "$SELECTED_BRANCH" != "" ]; then
                 break
             else
                 print_error "Неверный номер ветки"
             fi
         else
-            # Если введено название ветки
+            # Если введено название ветки - очищаем от пробелов
+            choice=$(echo "$choice" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
             if echo "$available_branches" | grep -q "^$choice$"; then
                 SELECTED_BRANCH="$choice"
                 break
@@ -235,11 +246,17 @@ check_for_updates() {
     # Очищаем название ветки от лишних пробелов
     SELECTED_BRANCH=$(echo "$SELECTED_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
     
+    # Проверяем, что название ветки не пустое
+    if [ -z "$SELECTED_BRANCH" ] || [ "$SELECTED_BRANCH" = "" ]; then
+        print_error "Название ветки пустое или содержит только пробелы"
+        return 1
+    fi
+    
     # Проверяем, существует ли выбранная ветка на удаленном репозитории
     if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
         print_error "Ветка '$SELECTED_BRANCH' не найдена на удаленном репозитории"
         print_status "Доступные ветки:"
-        git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u | sed 's/^/  - /'
+        git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u | sed 's/^/  - /'
         return 1
     fi
     
@@ -260,7 +277,7 @@ check_for_updates() {
             if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
                 print_error "Удаленная ветка 'origin/$SELECTED_BRANCH' не найдена"
                 print_status "Доступные удаленные ветки:"
-                git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u | sed 's/^/  - /'
+                git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v '^[[:space:]]*$' | sort -u | sed 's/^/  - /'
                 return 1
             fi
             
