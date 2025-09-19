@@ -69,6 +69,51 @@ self_update_script() {
   fi
 }
 
+# Автоматическая проверка обновлений (при каждом запуске)
+auto_check_updates() {
+  # Проверяем только если не отключено явно
+  if [ "${WORKERNET_NO_AUTO_UPDATE:-0}" = "1" ]; then
+    return 0
+  fi
+  
+  # Проверяем не чаще чем раз в день
+  local last_check_file="/tmp/.workernet_last_update_check"
+  local now=$(date +%s)
+  local last_check=0
+  
+  if [ -f "$last_check_file" ]; then
+    last_check=$(cat "$last_check_file" 2>/dev/null || echo "0")
+  fi
+  
+  # Проверяем, прошло ли 24 часа (86400 секунд)
+  if [ $((now - last_check)) -lt 86400 ]; then
+    return 0
+  fi
+  
+  # Сохраняем время последней проверки
+  echo "$now" > "$last_check_file" 2>/dev/null || true
+  
+  print_status "Автоматическая проверка обновлений скриптов..."
+  
+  # Проверяем обновления без перезапуска
+  SCRIPT_PATH="$0"
+  if command -v readlink >/dev/null 2>&1; then
+    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")"
+  fi
+
+  RAW_BRANCH="${WORKERNET_BRANCH:-main}"
+  RAW_URL="${WORKERNET_RAW_QUICK_URL:-https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/${RAW_BRANCH}/scripts/quick-update.sh}"
+
+  TMP_FILE="/tmp/quick-update-check.$$"
+  if curl -fsSL "$RAW_URL" -o "$TMP_FILE" 2>/dev/null; then
+    if ! cmp -s "$TMP_FILE" "$SCRIPT_PATH"; then
+      print_warning "Доступна новая версия quick-update.sh"
+      print_status "Для обновления запустите: $0 --self-update"
+    fi
+    rm -f "$TMP_FILE"
+  fi
+}
+
 # Находим директорию проекта
 find_project_directory() {
     if [ -d "/opt/workernet" ]; then
@@ -597,6 +642,9 @@ main() {
     print_status "Запуск быстрого обновления WorkerNet Portal..."
     echo
 
+    # Автоматическая проверка обновлений (если не отключена)
+    auto_check_updates
+
     # Самообновление (при запросе)
     if [ "${WORKERNET_SELF_UPDATE:-0}" = "1" ] || [ "${1:-}" = "--self-update" ]; then
       self_update_script "$@"
@@ -649,6 +697,9 @@ case "${1:-}" in
         echo "  --branch BRANCH Указать ветку для обновления"
         echo "  --create-branch Создать локальную ветку из удаленной"
         echo "  --debug        Показать диагностическую информацию"
+        echo "  --self-update  Обновить сам скрипт quick-update.sh"
+        echo "  --check-scripts Проверить актуальность всех скриптов"
+        echo "  --update-scripts Обновить все устаревшие скрипты"
         echo
         echo "Подсказка: при ошибке 'Permission denied' запустите так: bash ./scripts/quick-update.sh"
         echo
@@ -781,6 +832,24 @@ case "${1:-}" in
     --self-update)
         # Явный вызов самообновления
         WORKERNET_SELF_UPDATE=1 exec bash "$0" "$@"
+        ;;
+    --check-scripts)
+        # Проверка всех скриптов на самообновление
+        if [ -f "scripts/check-scripts-self-update.sh" ]; then
+            bash scripts/check-scripts-self-update.sh check
+        else
+            print_error "Скрипт check-scripts-self-update.sh не найден"
+            exit 1
+        fi
+        ;;
+    --update-scripts)
+        # Обновление всех скриптов
+        if [ -f "scripts/check-scripts-self-update.sh" ]; then
+            bash scripts/check-scripts-self-update.sh update
+        else
+            print_error "Скрипт check-scripts-self-update.sh не найден"
+            exit 1
+        fi
         ;;
     *)
         main "$@"
