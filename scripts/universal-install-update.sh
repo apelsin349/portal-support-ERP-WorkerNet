@@ -1492,14 +1492,48 @@ main() {
     
     print_status "Выбран режим установки: $INSTALLATION_MODE"
     
-    # Выбираем репозиторий (если не задан через переменные окружения)
-    select_repository
-    
     # Выполняем установку в зависимости от выбранного режима
     if [ "$INSTALLATION_MODE" = "update" ]; then
         # Режим обновления
         # Раннее обновление проекта, если уже клонирован
         early_update_repository
+        
+        # Спрашиваем о смене репозитория в режиме обновления
+        if [ -z "$REPO_URL" ]; then
+            echo
+            print_status "Обновление существующей установки"
+            echo "Текущий репозиторий: $(cd "$WORKERNET_ROOT" && git remote get-url origin 2>/dev/null || echo 'не определен')"
+            echo
+            echo "Выберите действие:"
+            echo "1) Обновить из текущего репозитория"
+            echo "2) Сменить репозиторий"
+            echo "3) Использовать текущий (по умолчанию)"
+            echo
+            
+            while true; do
+                read -p "Введите номер (1-3): " choice
+                
+                case "$choice" in
+                    1|3|"")
+                        # Используем текущий репозиторий
+                        REPO_URL="$(cd "$WORKERNET_ROOT" && git remote get-url origin 2>/dev/null || echo '')"
+                        print_status "Используем текущий репозиторий: $REPO_URL"
+                        break
+                        ;;
+                    2)
+                        # Позволяем выбрать новый репозиторий
+                        select_repository
+                        break
+                        ;;
+                    *)
+                        print_error "Неверный выбор. Введите номер (1-3)"
+                        ;;
+                esac
+            done
+        else
+            print_status "Используем репозиторий из переменной окружения: $REPO_URL"
+        fi
+        
         update_installation
         
         # Показываем информацию об обновлении
@@ -1523,6 +1557,8 @@ main() {
         
     else
         # Режим новой установки
+        # Выбираем репозиторий для новой установки
+        select_repository
         fresh_installation
         
         # Check prerequisites
