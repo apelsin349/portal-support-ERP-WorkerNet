@@ -340,6 +340,8 @@ case "${1:-}" in
         echo "  --check        Только проверить наличие обновлений"
         echo "  --force        Принудительное обновление без проверки"
         echo
+        echo "Подсказка: при ошибке 'Permission denied' запустите так: bash ./scripts/quick-update.sh"
+        echo
         echo "Переменные окружения:"
         echo "  WORKERNET_NONINTERACTIVE=1  Неинтерактивный режим"
         echo

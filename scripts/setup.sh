@@ -249,6 +249,10 @@ show_urls() {
 main() {
     check_os
     check_dependencies
+    # Fix script permissions and normalize line endings (idempotent)
+    if [ -f "$(dirname "$0")/fix-perms.sh" ]; then
+        bash "$(dirname "$0")/fix-perms.sh" || true
+    fi
     create_directories
     setup_environment
     generate_secrets
