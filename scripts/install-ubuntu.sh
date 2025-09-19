@@ -701,14 +701,14 @@ select_branch() {
     
     # Если ветка указана через аргумент или переменную окружения
     if [ -n "$target_branch" ]; then
-        SELECTED_BRANCH="$target_branch"
+        SELECTED_BRANCH=$(echo "$target_branch" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
         print_status "Выбрана ветка: $SELECTED_BRANCH"
         return 0
     fi
     
     # Если ветка указана через переменную окружения
     if [ -n "${WORKERNET_BRANCH:-}" ]; then
-        SELECTED_BRANCH="$WORKERNET_BRANCH"
+        SELECTED_BRANCH=$(echo "$WORKERNET_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
         print_status "Выбрана ветка из переменной окружения: $SELECTED_BRANCH"
         return 0
     fi
@@ -812,11 +812,14 @@ clone_repository() {
     # Обновляем ссылки и жёстко синхронизируемся с выбранной веткой
     git fetch --all --prune || true
     
+    # Очищаем название ветки от лишних пробелов
+    SELECTED_BRANCH=$(echo "$SELECTED_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+    
     # Проверяем, существует ли выбранная ветка на удаленном репозитории
     if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
         print_error "Ветка '$SELECTED_BRANCH' не найдена на удаленном репозитории"
         print_status "Доступные ветки:"
-        git branch -r | grep -v HEAD | sed 's/origin\///' | sort -u | sed 's/^/  - /'
+        git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u | sed 's/^/  - /'
         print_status "Используем ветку main по умолчанию"
         SELECTED_BRANCH="main"
     fi

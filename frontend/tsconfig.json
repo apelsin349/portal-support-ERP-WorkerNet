@@ -28,7 +28,9 @@
       "@store/*": ["src/store/*"],
       "@utils/*": ["src/utils/*"],
       "@types/*": ["src/types/*"],
-      "@assets/*": ["src/assets/*"]
+      "@assets/*": ["src/assets/*"],
+      "@contexts/*": ["src/contexts/*"],
+      "@theme/*": ["src/theme/*"]
     }
   },
   "include": [

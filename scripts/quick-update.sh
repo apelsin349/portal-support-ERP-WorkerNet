@@ -95,14 +95,14 @@ select_branch() {
     
     # Если ветка указана через аргумент или переменную окружения
     if [ -n "$target_branch" ]; then
-        SELECTED_BRANCH="$target_branch"
+        SELECTED_BRANCH=$(echo "$target_branch" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
         print_status "Выбрана ветка: $SELECTED_BRANCH"
         return 0
     fi
     
     # Если ветка указана через переменную окружения
     if [ -n "${WORKERNET_BRANCH:-}" ]; then
-        SELECTED_BRANCH="$WORKERNET_BRANCH"
+        SELECTED_BRANCH=$(echo "$WORKERNET_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
         print_status "Выбрана ветка из переменной окружения: $SELECTED_BRANCH"
         return 0
     fi
@@ -115,7 +115,7 @@ select_branch() {
     
     # Получаем список доступных веток
     local available_branches
-    available_branches=$(git branch -r | grep -v HEAD | sed 's/origin\///' | sort -u)
+    available_branches=$(git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u)
     
     # Если неинтерактивный режим, используем текущую ветку
     if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
@@ -126,10 +126,18 @@ select_branch() {
     
     # Интерактивный выбор ветки
     echo
-    print_status "Доступные ветки:"
+    print_status "Доступные удаленные ветки:"
     echo "$available_branches" | nl -w2 -s') '
     echo
     echo "Текущая ветка: $current_branch"
+    
+    # Показываем локальные ветки
+    local local_branches
+    local_branches=$(git branch | sed 's/^\*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | grep -v "^$")
+    if [ -n "$local_branches" ]; then
+        echo "Локальные ветки:"
+        echo "$local_branches" | sed 's/^/  - /'
+    fi
     echo
     
     while true; do
@@ -171,24 +179,87 @@ check_for_updates() {
     
     # Получаем информацию о текущей ветке
     CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
-    git fetch --all --prune
+    
+    # Принудительно обновляем удаленные ссылки
+    print_status "Обновляем удаленные ссылки..."
+    git fetch --all --prune --force 2>/dev/null || true
+    
+    # Дополнительная синхронизация
+    git remote update 2>/dev/null || true
+    
+    # Очищаем название ветки от лишних пробелов
+    SELECTED_BRANCH=$(echo "$SELECTED_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
     
     # Проверяем, существует ли выбранная ветка на удаленном репозитории
     if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
         print_error "Ветка '$SELECTED_BRANCH' не найдена на удаленном репозитории"
         print_status "Доступные ветки:"
-        git branch -r | grep -v HEAD | sed 's/origin\///' | sort -u | sed 's/^/  - /'
+        git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u | sed 's/^/  - /'
         return 1
     fi
     
     # Если мы не на выбранной ветке, переключаемся на неё
     if [ "$CURRENT_BRANCH" != "$SELECTED_BRANCH" ]; then
         print_status "Переключаемся на ветку '$SELECTED_BRANCH'..."
-        if git checkout "$SELECTED_BRANCH" 2>/dev/null || git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null; then
-            print_success "Переключились на ветку '$SELECTED_BRANCH'"
+        
+        # Сначала пытаемся переключиться на существующую локальную ветку
+        if git checkout "$SELECTED_BRANCH" 2>/dev/null; then
+            print_success "Переключились на существующую локальную ветку '$SELECTED_BRANCH'"
         else
-            print_error "Не удалось переключиться на ветку '$SELECTED_BRANCH'"
-            return 1
+            print_status "Локальная ветка '$SELECTED_BRANCH' не найдена, создаем из удаленной..."
+            
+            # Создаем локальную ветку из удаленной
+            print_status "Проверяем удаленную ветку 'origin/$SELECTED_BRANCH'..."
+            
+            # Проверяем, что удаленная ветка действительно существует
+            if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
+                print_error "Удаленная ветка 'origin/$SELECTED_BRANCH' не найдена"
+                print_status "Доступные удаленные ветки:"
+                git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sort -u | sed 's/^/  - /'
+                return 1
+            fi
+            
+            # Показываем информацию об удаленной ветке
+            local remote_commit
+            remote_commit=$(git rev-parse "origin/$SELECTED_BRANCH" 2>/dev/null)
+            print_status "Удаленная ветка найдена: $remote_commit"
+            
+            # Пытаемся создать локальную ветку
+            if git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null; then
+                print_success "Создали и переключились на ветку '$SELECTED_BRANCH'"
+            else
+                print_warning "Основной способ не сработал, пробуем альтернативный..."
+                
+                # Альтернативный способ: создаем ветку и затем устанавливаем upstream
+                if git checkout -b "$SELECTED_BRANCH" 2>/dev/null; then
+                    print_status "Создали локальную ветку '$SELECTED_BRANCH', устанавливаем upstream..."
+                    if git branch --set-upstream-to="origin/$SELECTED_BRANCH" "$SELECTED_BRANCH" 2>/dev/null; then
+                        print_status "Устанавливаем связь с удаленной веткой..."
+                        git pull origin "$SELECTED_BRANCH" 2>/dev/null || true
+                        print_success "Создали и настроили ветку '$SELECTED_BRANCH'"
+                    else
+                        print_error "Не удалось установить связь с удаленной веткой"
+                        print_status "Проверяем статус Git:"
+                        git status --porcelain 2>/dev/null || true
+                        print_status "Проверяем рабочую директорию:"
+                        git diff --name-only 2>/dev/null || true
+                        print_status "Попробуйте выполнить команды вручную:"
+                        echo "  git checkout -b $SELECTED_BRANCH"
+                        echo "  git branch --set-upstream-to=origin/$SELECTED_BRANCH $SELECTED_BRANCH"
+                        echo "  git pull origin $SELECTED_BRANCH"
+                        return 1
+                    fi
+                else
+                    print_error "Не удалось создать ветку '$SELECTED_BRANCH'"
+                    print_status "Проверяем статус Git:"
+                    git status --porcelain 2>/dev/null || true
+                    print_status "Проверяем рабочую директорию:"
+                    git diff --name-only 2>/dev/null || true
+                    print_status "Попробуйте выполнить команду вручную:"
+                    echo "  git checkout -b $SELECTED_BRANCH origin/$SELECTED_BRANCH"
+                    return 1
+                fi
+            fi
         fi
     fi
     
@@ -236,7 +307,20 @@ update_code() {
     CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
     if [ "$CURRENT_BRANCH" != "$SELECTED_BRANCH" ]; then
         print_status "Переключаемся на ветку '$SELECTED_BRANCH'..."
-        git checkout "$SELECTED_BRANCH" 2>/dev/null || git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null || true
+        
+        # Сначала пытаемся переключиться на существующую локальную ветку
+        if git checkout "$SELECTED_BRANCH" 2>/dev/null; then
+            print_success "Переключились на существующую локальную ветку '$SELECTED_BRANCH'"
+        else
+            print_status "Локальная ветка '$SELECTED_BRANCH' не найдена, создаем из удаленной..."
+            
+            # Создаем локальную ветку из удаленной
+            if git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null; then
+                print_success "Создали и переключились на ветку '$SELECTED_BRANCH'"
+            else
+                print_warning "Не удалось переключиться на ветку '$SELECTED_BRANCH', продолжаем с текущей веткой '$CURRENT_BRANCH'"
+            fi
+        fi
     fi
     
     # Обновляем до последней версии выбранной ветки
@@ -472,6 +556,8 @@ case "${1:-}" in
         echo "  --check        Только проверить наличие обновлений"
         echo "  --force        Принудительное обновление без проверки"
         echo "  --branch BRANCH Указать ветку для обновления"
+        echo "  --create-branch Создать локальную ветку из удаленной"
+        echo "  --debug        Показать диагностическую информацию"
         echo
         echo "Подсказка: при ошибке 'Permission denied' запустите так: bash ./scripts/quick-update.sh"
         echo
@@ -483,6 +569,8 @@ case "${1:-}" in
         echo "  $0 --branch develop        Обновить до ветки develop"
         echo "  $0 --branch feature/new    Обновить до ветки feature/new"
         echo "  $0 --check --branch main   Проверить обновления в ветке main"
+        echo "  $0 --create-branch new-feature Создать локальную ветку new-feature"
+        echo "  $0 --debug                Показать диагностическую информацию"
         echo
         exit 0
         ;;
@@ -550,6 +638,54 @@ case "${1:-}" in
         else
             print_success "Ветка '$SELECTED_BRANCH' уже актуальна"
         fi
+        ;;
+    --create-branch)
+        if [ -z "${2:-}" ]; then
+            print_error "Не указана ветка для --create-branch"
+            echo "Использование: $0 --create-branch BRANCH_NAME"
+            exit 1
+        fi
+        find_project_directory
+        print_status "Создаем локальную ветку '$2' из удаленной..."
+        cd "$PROJECT_DIR"
+        git fetch --all --prune
+        if git checkout -b "$2" "origin/$2" 2>/dev/null; then
+            print_success "Локальная ветка '$2' создана и переключение выполнено"
+        else
+            print_error "Не удалось создать ветку '$2' из 'origin/$2'"
+            print_status "Проверьте, что ветка '$2' существует на удаленном репозитории"
+            exit 1
+        fi
+        ;;
+    --debug)
+        find_project_directory
+        print_status "Диагностическая информация Git:"
+        cd "$PROJECT_DIR"
+        echo
+        echo "=== Информация о репозитории ==="
+        echo "Директория: $(pwd)"
+        echo "Git версия: $(git --version 2>/dev/null || echo 'недоступна')"
+        echo
+        echo "=== Удаленные репозитории ==="
+        git remote -v 2>/dev/null || echo "недоступны"
+        echo
+        echo "=== Текущая ветка ==="
+        git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "недоступна"
+        echo
+        echo "=== Локальные ветки ==="
+        git branch 2>/dev/null || echo "недоступны"
+        echo
+        echo "=== Удаленные ветки ==="
+        git branch -r 2>/dev/null || echo "недоступны"
+        echo
+        echo "=== Статус рабочей директории ==="
+        git status --porcelain 2>/dev/null || echo "недоступен"
+        echo
+        echo "=== Последний коммит ==="
+        git log -1 --oneline 2>/dev/null || echo "недоступен"
+        echo
+        echo "=== Конфигурация Git ==="
+        git config --list --local 2>/dev/null | head -10 || echo "недоступна"
         ;;
     --self-update)
         # Явный вызов самообновления

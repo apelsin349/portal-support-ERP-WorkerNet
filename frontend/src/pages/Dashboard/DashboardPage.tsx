@@ -1,6 +1,6 @@
 import React from 'react';
 import { Grid, Card, CardContent, Typography, Box, Chip, LinearProgress } from '@mui/material';
-import { TrendingUp, Ticket, People, School, CheckCircle, Schedule, Warning } from '@mui/icons-material';
+import { TrendingUp, SupportAgent, People, School, CheckCircle, Schedule, Warning } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
@@ -50,14 +50,14 @@ const StatCard: React.FC<{
   </motion.div>
 );
 
-export const DashboardPage: React.FC = () => {
+const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
 
   const stats = [
     {
       title: t('dashboard.totalTickets'),
       value: '1,234',
-      icon: <Ticket />,
+      icon: <SupportAgent />,
       color: 'primary',
       trend: '+12%',
     },
@@ -207,7 +207,7 @@ export const DashboardPage: React.FC = () => {
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Ticket sx={{ mr: 2 }} />
+                        <SupportAgent sx={{ mr: 2 }} />
                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
                           {t('dashboard.createTicket')}
                         </Typography>
@@ -248,3 +248,5 @@ export const DashboardPage: React.FC = () => {
     </Box>
   );
 };
+
+export default DashboardPage;

@@ -4,7 +4,7 @@ import { Login as LoginIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
-export const LoginPage: React.FC = () => {
+const LoginPage: React.FC = () => {
   const { t } = useTranslation();
 
   return (
@@ -62,3 +62,5 @@ export const LoginPage: React.FC = () => {
     </Container>
   );
 };
+
+export default LoginPage;
