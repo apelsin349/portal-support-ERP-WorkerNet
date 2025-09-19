@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // Попытка импорта Sharp
 let sharp;
@@ -9,6 +10,60 @@ try {
 } catch (error) {
   console.log('⚠️  Sharp не найден - используется базовая генерация');
   console.log('💡 Для лучшего качества установите: npm install sharp');
+}
+
+// Функция для проверки, нужно ли генерировать иконки
+function needsIconGeneration() {
+  const iconDir = path.join(__dirname, '../public/icons');
+  const hashFile = path.join(iconDir, '.icons_hash');
+  const sourceIcon = path.join(__dirname, '../public/icons/icon.svg');
+  
+  // Если директория иконок не существует, нужно генерировать
+  if (!fs.existsSync(iconDir)) {
+    return true;
+  }
+  
+  // Если хеш-файл не существует, нужно генерировать
+  if (!fs.existsSync(hashFile)) {
+    return true;
+  }
+  
+  // Если исходная иконка не существует, используем базовую генерацию
+  if (!fs.existsSync(sourceIcon)) {
+    return true;
+  }
+  
+  try {
+    // Читаем сохраненный хеш
+    const savedHash = fs.readFileSync(hashFile, 'utf8').trim();
+    
+    // Вычисляем текущий хеш исходной иконки
+    const sourceIconData = fs.readFileSync(sourceIcon);
+    const currentHash = crypto.createHash('sha256').update(sourceIconData).digest('hex');
+    
+    // Если хеши не совпадают, нужно генерировать
+    return savedHash !== currentHash;
+  } catch (error) {
+    // Если произошла ошибка, генерируем иконки
+    return true;
+  }
+}
+
+// Функция для сохранения хеша
+function saveIconHash() {
+  const iconDir = path.join(__dirname, '../public/icons');
+  const hashFile = path.join(iconDir, '.icons_hash');
+  const sourceIcon = path.join(__dirname, '../public/icons/icon.svg');
+  
+  try {
+    if (fs.existsSync(sourceIcon)) {
+      const sourceIconData = fs.readFileSync(sourceIcon);
+      const hash = crypto.createHash('sha256').update(sourceIconData).digest('hex');
+      fs.writeFileSync(hashFile, hash);
+    }
+  } catch (error) {
+    // Игнорируем ошибки сохранения хеша
+  }
 }
 
 // Создаем простые PNG иконки разных размеров
@@ -121,6 +176,12 @@ async function generateSpecialIcons() {
 
 // Основная функция
 async function main() {
+  // Проверяем, нужно ли генерировать иконки
+  if (!needsIconGeneration()) {
+    console.log('✅ Иконки PWA актуальны, пропускаем генерацию');
+    return;
+  }
+  
   console.log('🎨 Генерация иконок PWA...\n');
   
   // Генерируем основные иконки
@@ -136,6 +197,9 @@ async function main() {
     } else {
       console.log('💡 Для лучшего качества установите: npm install sharp');
     }
+    
+    // Сохраняем хеш после успешной генерации
+    saveIconHash();
   } else {
     console.log('\n⚠️  Некоторые иконки не были созданы');
   }

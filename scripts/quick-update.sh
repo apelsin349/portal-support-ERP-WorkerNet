@@ -445,9 +445,9 @@ build_frontend() {
             node scripts/install-icon-deps.js || print_warning "Не удалось установить зависимости для иконок"
         fi
         
-        # Генерируем иконки для PWA
+        # Генерируем иконки для PWA (только если нужно)
         if [ -f "scripts/generate-icons.js" ]; then
-            print_status "Генерируем иконки для PWA..."
+            print_status "Проверяем необходимость генерации иконок PWA..."
             node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
         fi
         

@@ -36,7 +36,7 @@ $sqlContent | Out-File -FilePath "temp_fix.sql" -Encoding UTF8
 
 # Выполняем SQL команду
 try {
-    python manage.py dbshell < temp_fix.sql
+    python manage.py dbshell  temp_fix.sql
     Write-Host "[УСПЕХ] SQL команда выполнена успешно!" -ForegroundColor Green
 } catch {
     Write-Host "[ВНИМАНИЕ] Не удалось выполнить SQL команду: $($_.Exception.Message)" -ForegroundColor Yellow
