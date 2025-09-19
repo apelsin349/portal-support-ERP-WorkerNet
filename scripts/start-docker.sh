@@ -36,7 +36,7 @@ check_docker() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
         print_error "Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
@@ -74,7 +74,19 @@ create_directories() {
 build_images() {
     print_status "Building Docker images..."
     
-    docker-compose build --no-cache
+    # Build frontend with PWA support
+    print_status "Building frontend with PWA support..."
+    if command -v docker-compose &> /dev/null; then
+        docker-compose build --no-cache frontend
+        # Build other services
+        print_status "Building other services..."
+        docker-compose build --no-cache
+    else
+        docker compose build --no-cache frontend
+        # Build other services
+        print_status "Building other services..."
+        docker compose build --no-cache
+    fi
     
     print_success "Docker images built successfully"
 }
@@ -84,21 +96,31 @@ start_services() {
     print_status "Запускаем сервисы..."
     
     # Start database and cache first
-    docker-compose up -d db redis
-    
-    # Wait for database to be ready
-    print_status "Waiting for database to be ready..."
-    sleep 10
-    
-    # Start backend
-    docker-compose up -d backend
-    
-    # Wait for backend to be ready
-    print_status "Waiting for backend to be ready..."
-    sleep 15
-    
-    # Start remaining services
-    docker-compose up -d
+    if command -v docker-compose &> /dev/null; then
+        docker-compose up -d db redis
+        # Wait for database to be ready
+        print_status "Waiting for database to be ready..."
+        sleep 10
+        # Start backend
+        docker-compose up -d backend
+        # Wait for backend to be ready
+        print_status "Waiting for backend to be ready..."
+        sleep 15
+        # Start remaining services
+        docker-compose up -d
+    else
+        docker compose up -d db redis
+        # Wait for database to be ready
+        print_status "Waiting for database to be ready..."
+        sleep 10
+        # Start backend
+        docker compose up -d backend
+        # Wait for backend to be ready
+        print_status "Waiting for backend to be ready..."
+        sleep 15
+        # Start remaining services
+        docker compose up -d
+    fi
     
     print_success "Все сервисы успешно запущены"
 }
@@ -107,7 +129,11 @@ start_services() {
 run_migrations() {
     print_status "Running database migrations..."
     
-    docker-compose exec backend python manage.py migrate
+    if command -v docker-compose &> /dev/null; then
+        docker-compose exec backend python manage.py migrate
+    else
+        docker compose exec backend python manage.py migrate
+    fi
     
     print_success "Database migrations completed successfully"
 }
@@ -116,7 +142,11 @@ run_migrations() {
 create_superuser() {
     print_status "Creating superuser..."
     
-    docker-compose exec backend python manage.py shell << EOF
+    if command -v docker-compose &> /dev/null; then
+        docker-compose exec backend python manage.py shell << EOF
+    else
+        docker compose exec backend python manage.py shell << EOF
+    fi
 from django.contrib.auth import get_user_model
 from app.models.tenant import Tenant
 
@@ -152,7 +182,11 @@ EOF
 collect_static() {
     print_status "Collecting static files..."
     
-    docker-compose exec backend python manage.py collectstatic --noinput
+    if command -v docker-compose &> /dev/null; then
+        docker-compose exec backend python manage.py collectstatic --noinput
+    else
+        docker compose exec backend python manage.py collectstatic --noinput
+    fi
     
     print_success "Static files collected successfully"
 }
@@ -160,26 +194,42 @@ collect_static() {
 # Function to show service status
 show_status() {
     print_status "Статус сервисов:"
-    docker-compose ps
+    if command -v docker-compose &> /dev/null; then
+        docker-compose ps
+    else
+        docker compose ps
+    fi
 }
 
 # Function to show logs
 show_logs() {
     print_status "Showing logs (press Ctrl+C to exit):"
-    docker-compose logs -f
+    if command -v docker-compose &> /dev/null; then
+        docker-compose logs -f
+    else
+        docker compose logs -f
+    fi
 }
 
 # Function to stop services
 stop_services() {
     print_status "Останавливаем сервисы..."
-    docker-compose down
+    if command -v docker-compose &> /dev/null; then
+        docker-compose down
+    else
+        docker compose down
+    fi
     print_success "Services stopped successfully"
 }
 
 # Function to restart services
 restart_services() {
     print_status "Перезапускаем сервисы..."
-    docker-compose restart
+    if command -v docker-compose &> /dev/null; then
+        docker-compose restart
+    else
+        docker compose restart
+    fi
     print_success "Services restarted successfully"
 }
 
@@ -199,6 +249,7 @@ show_help() {
     echo "  migrate   Run database migrations"
     echo "  superuser Create superuser"
     echo "  static    Collect static files"
+    echo "  branch    Показать текущую ветку Git"
     echo "  help      Show this help message"
     echo
     echo "Examples:"
@@ -207,18 +258,53 @@ show_help() {
     echo "  $0 restart"
 }
 
+# Function to show current Git branch
+show_branch() {
+    print_status "Информация о ветке Git:"
+    
+    if [ -d ".git" ]; then
+        local current_branch
+        current_branch=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+        echo "Текущая ветка: $current_branch"
+        
+        local remote_branch
+        remote_branch=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "не настроена")
+        echo "Отслеживаемая ветка: $remote_branch"
+        
+        local last_commit
+        last_commit=$(git log -1 --oneline 2>/dev/null || echo "недоступен")
+        echo "Последний коммит: $last_commit"
+        
+        local status
+        status=$(git status --porcelain 2>/dev/null | wc -l)
+        if [ "$status" -gt 0 ]; then
+            echo "Незафиксированные изменения: $status файлов"
+        else
+            echo "Рабочая директория чистая"
+        fi
+    else
+        print_warning "Не найдена Git директория"
+    fi
+}
+
 # Function to show final information
 show_final_info() {
     print_success "WorkerNet Portal is now running!"
     echo
     echo "=== Access Information ==="
-    echo "Frontend: http://localhost:3000"
+    echo "Frontend (PWA): http://localhost:3000"
     echo "API: http://localhost:8000"
     echo "API Docs: http://localhost:8000/api/docs"
     echo "Admin Panel: http://localhost:8000/admin"
     echo "Grafana: http://localhost:3001 (admin/admin123)"
     echo "Prometheus: http://localhost:9090"
     echo "Kibana: http://localhost:5601"
+    echo
+    echo "=== PWA Features ==="
+    echo "• Install as app on mobile/desktop"
+    echo "• Offline support"
+    echo "• Push notifications"
+    echo "• Auto-updates"
     echo
     echo "=== Default Credentials ==="
     echo "Admin User: admin"
@@ -229,6 +315,7 @@ show_final_info() {
     echo "Проверка статуса: $0 status"
     echo "Перезапуск: $0 restart"
     echo "Stop: $0 stop"
+    echo "Git branch info: $0 branch"
     echo
 }
 
@@ -270,6 +357,9 @@ main() {
             ;;
         static)
             collect_static
+            ;;
+        branch)
+            show_branch
             ;;
         help|--help|-h)
             show_help

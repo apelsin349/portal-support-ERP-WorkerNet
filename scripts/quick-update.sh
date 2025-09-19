@@ -89,25 +89,118 @@ find_project_directory() {
     print_status "Найдена директория проекта: $PROJECT_DIR"
 }
 
+# Выбор ветки Git
+select_branch() {
+    local target_branch="${1:-}"
+    
+    # Если ветка указана через аргумент или переменную окружения
+    if [ -n "$target_branch" ]; then
+        SELECTED_BRANCH="$target_branch"
+        print_status "Выбрана ветка: $SELECTED_BRANCH"
+        return 0
+    fi
+    
+    # Если ветка указана через переменную окружения
+    if [ -n "${WORKERNET_BRANCH:-}" ]; then
+        SELECTED_BRANCH="$WORKERNET_BRANCH"
+        print_status "Выбрана ветка из переменной окружения: $SELECTED_BRANCH"
+        return 0
+    fi
+    
+    cd "$PROJECT_DIR"
+    
+    # Получаем текущую ветку
+    local current_branch
+    current_branch=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+    
+    # Получаем список доступных веток
+    local available_branches
+    available_branches=$(git branch -r | grep -v HEAD | sed 's/origin\///' | sort -u)
+    
+    # Если неинтерактивный режим, используем текущую ветку
+    if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
+        SELECTED_BRANCH="$current_branch"
+        print_status "Неинтерактивный режим: используем текущую ветку $SELECTED_BRANCH"
+        return 0
+    fi
+    
+    # Интерактивный выбор ветки
+    echo
+    print_status "Доступные ветки:"
+    echo "$available_branches" | nl -w2 -s') '
+    echo
+    echo "Текущая ветка: $current_branch"
+    echo
+    
+    while true; do
+        read -p "Выберите ветку для обновления (номер или название, Enter для текущей): " choice
+        
+        # Если Enter - используем текущую ветку
+        if [ -z "$choice" ]; then
+            SELECTED_BRANCH="$current_branch"
+            break
+        fi
+        
+        # Если введен номер
+        if [[ "$choice" =~ ^[0-9]+$ ]]; then
+            SELECTED_BRANCH=$(echo "$available_branches" | sed -n "${choice}p")
+            if [ -n "$SELECTED_BRANCH" ]; then
+                break
+            else
+                print_error "Неверный номер ветки"
+            fi
+        else
+            # Если введено название ветки
+            if echo "$available_branches" | grep -q "^$choice$"; then
+                SELECTED_BRANCH="$choice"
+                break
+            else
+                print_error "Ветка '$choice' не найдена"
+            fi
+        fi
+    done
+    
+    print_status "Выбрана ветка: $SELECTED_BRANCH"
+}
+
 # Проверка обновлений
 check_for_updates() {
-    print_status "Проверяем наличие обновлений..."
+    print_status "Проверяем наличие обновлений в ветке '$SELECTED_BRANCH'..."
     
     cd "$PROJECT_DIR"
     
     # Получаем информацию о текущей ветке
-    CURRENT_BRANCH=$(git branch --show-current)
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
     git fetch --all --prune
     
-    # Проверяем наличие новых коммитов
+    # Проверяем, существует ли выбранная ветка на удаленном репозитории
+    if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
+        print_error "Ветка '$SELECTED_BRANCH' не найдена на удаленном репозитории"
+        print_status "Доступные ветки:"
+        git branch -r | grep -v HEAD | sed 's/origin\///' | sort -u | sed 's/^/  - /'
+        return 1
+    fi
+    
+    # Если мы не на выбранной ветке, переключаемся на неё
+    if [ "$CURRENT_BRANCH" != "$SELECTED_BRANCH" ]; then
+        print_status "Переключаемся на ветку '$SELECTED_BRANCH'..."
+        if git checkout "$SELECTED_BRANCH" 2>/dev/null || git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null; then
+            print_success "Переключились на ветку '$SELECTED_BRANCH'"
+        else
+            print_error "Не удалось переключиться на ветку '$SELECTED_BRANCH'"
+            return 1
+        fi
+    fi
+    
+    # Проверяем наличие новых коммитов в выбранной ветке
     LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH")
+    REMOTE=$(git rev-parse "origin/$SELECTED_BRANCH" 2>/dev/null)
     
     if [ "$LOCAL" = "$REMOTE" ]; then
-        print_success "Обновления не найдены - система актуальна"
+        print_success "Обновления не найдены - ветка '$SELECTED_BRANCH' актуальна"
         return 1
     else
-        print_warning "Найдены обновления"
+        print_warning "Найдены обновления в ветке '$SELECTED_BRANCH'"
         print_status "Текущая версия: $LOCAL"
         print_status "Новая версия: $REMOTE"
         return 0
@@ -126,22 +219,31 @@ stop_services() {
 
 # Обновление кода
 update_code() {
-    print_status "Обновляем код из репозитория..."
+    print_status "Обновляем код из репозитория (ветка: $SELECTED_BRANCH)..."
     
     cd "$PROJECT_DIR"
     
     # Сохраняем локальные изменения
     if ! git diff --quiet || ! git diff --cached --quiet; then
         print_warning "Обнаружены локальные изменения"
-        git stash push -m "Auto-stash before update $(date)" || true
+        git stash push -m "Auto-stash before update to $SELECTED_BRANCH $(date)" || true
     fi
     
     # Обновляем код
     git fetch --all --prune
-    git reset --hard "origin/$(git branch --show-current)"
+    
+    # Переключаемся на выбранную ветку если нужно
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
+    if [ "$CURRENT_BRANCH" != "$SELECTED_BRANCH" ]; then
+        print_status "Переключаемся на ветку '$SELECTED_BRANCH'..."
+        git checkout "$SELECTED_BRANCH" 2>/dev/null || git checkout -b "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null || true
+    fi
+    
+    # Обновляем до последней версии выбранной ветки
+    git reset --hard "origin/$SELECTED_BRANCH" 2>/dev/null || true
     git submodule update --init --recursive 2>/dev/null || true
     
-    print_success "Код обновлен"
+    print_success "Код обновлен до ветки '$SELECTED_BRANCH'"
 }
 
 # Обновление зависимостей Python
@@ -202,6 +304,31 @@ update_nodejs_deps() {
         print_success "Зависимости Node.js обновлены"
     else
         print_warning "Директория frontend не найдена"
+    fi
+}
+
+# Сборка фронтенда с PWA
+build_frontend() {
+    if [ -d "$PROJECT_DIR/frontend" ]; then
+        print_status "Собираем фронтенд с PWA поддержкой..."
+        
+        cd "$PROJECT_DIR/frontend"
+        
+        # Генерируем иконки для PWA
+        if [ -f "scripts/generate-icons.js" ]; then
+            print_status "Генерируем иконки для PWA..."
+            node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+        fi
+        
+        # Собираем фронтенд для production
+        print_status "Собираем фронтенд для production..."
+        if npm run build; then
+            print_success "Фронтенд собран успешно"
+        else
+            print_warning "Ошибка сборки фронтенда — продолжаем без сборки"
+        fi
+    else
+        print_warning "Директория frontend не найдена — пропускаем сборку"
     fi
 }
 
@@ -303,6 +430,9 @@ main() {
     # Находим директорию проекта
     find_project_directory
     
+    # Выбираем ветку
+    select_branch
+    
     # Проверяем обновления
     if ! check_for_updates; then
         exit 0
@@ -311,6 +441,7 @@ main() {
     # Подтверждение обновления
     if [[ -z "${CI:-}" && -z "${WORKERNET_NONINTERACTIVE:-}" ]]; then
         echo
+        print_warning "Обновление до ветки: $SELECTED_BRANCH"
         read -p "Продолжить обновление? (y/N): " confirm
         if [[ ! $confirm =~ ^[Yy]$ ]]; then
             print_status "Обновление отменено пользователем"
@@ -323,6 +454,7 @@ main() {
     update_code
     update_python_deps
     update_nodejs_deps
+    build_frontend
     run_migrations
     start_services
     show_status
@@ -339,34 +471,85 @@ case "${1:-}" in
         echo "  --help, -h     Показать эту справку"
         echo "  --check        Только проверить наличие обновлений"
         echo "  --force        Принудительное обновление без проверки"
+        echo "  --branch BRANCH Указать ветку для обновления"
         echo
         echo "Подсказка: при ошибке 'Permission denied' запустите так: bash ./scripts/quick-update.sh"
         echo
         echo "Переменные окружения:"
         echo "  WORKERNET_NONINTERACTIVE=1  Неинтерактивный режим"
+        echo "  WORKERNET_BRANCH=BRANCH     Ветка для обновления"
+        echo
+        echo "Примеры:"
+        echo "  $0 --branch develop        Обновить до ветки develop"
+        echo "  $0 --branch feature/new    Обновить до ветки feature/new"
+        echo "  $0 --check --branch main   Проверить обновления в ветке main"
         echo
         exit 0
         ;;
     --check)
         find_project_directory
+        # Обработка аргумента --branch для --check
+        if [ "${2:-}" = "--branch" ] && [ -n "${3:-}" ]; then
+            select_branch "$3"
+        else
+            select_branch
+        fi
         if check_for_updates; then
-            print_warning "Доступны обновления"
+            print_warning "Доступны обновления в ветке '$SELECTED_BRANCH'"
             exit 1
         else
-            print_success "Обновления не найдены"
+            print_success "Обновления не найдены в ветке '$SELECTED_BRANCH'"
             exit 0
         fi
         ;;
     --force)
         print_warning "Принудительное обновление"
         find_project_directory
+        # Обработка аргумента --branch для --force
+        if [ "${2:-}" = "--branch" ] && [ -n "${3:-}" ]; then
+            select_branch "$3"
+        else
+            select_branch
+        fi
         stop_services
         update_code
         update_python_deps
         update_nodejs_deps
+        build_frontend
         run_migrations
         start_services
         show_status
+        ;;
+    --branch)
+        if [ -z "${2:-}" ]; then
+            print_error "Не указана ветка для --branch"
+            echo "Использование: $0 --branch BRANCH_NAME"
+            exit 1
+        fi
+        find_project_directory
+        select_branch "$2"
+        if check_for_updates; then
+            # Подтверждение обновления
+            if [[ -z "${CI:-}" && -z "${WORKERNET_NONINTERACTIVE:-}" ]]; then
+                echo
+                print_warning "Обновление до ветки: $SELECTED_BRANCH"
+                read -p "Продолжить обновление? (y/N): " confirm
+                if [[ ! $confirm =~ ^[Yy]$ ]]; then
+                    print_status "Обновление отменено пользователем"
+                    exit 0
+                fi
+            fi
+            stop_services
+            update_code
+            update_python_deps
+            update_nodejs_deps
+            build_frontend
+            run_migrations
+            start_services
+            show_status
+        else
+            print_success "Ветка '$SELECTED_BRANCH' уже актуальна"
+        fi
         ;;
     --self-update)
         # Явный вызов самообновления

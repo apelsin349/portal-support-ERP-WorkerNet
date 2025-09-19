@@ -64,15 +64,19 @@ docker compose up -d
 - **Кэш**: Redis 7+
 - **Очереди**: Celery с Redis broker
 - **Мониторинг**: Prometheus + Grafana
+- **Логирование**: ELK Stack (Elasticsearch, Logstash, Kibana)
+- **Reverse Proxy**: Nginx
 
 ### Технический стек
 
 ```
-Frontend (React) ←→ API (Django) ←→ PostgreSQL
+Frontend (React) ←→ Nginx ←→ API (Django) ←→ PostgreSQL
+                        ↓                        ↓
+                    Redis (Cache + Queue)    Elasticsearch
+                        ↓                        ↓
+                   Celery Workers            Kibana
                         ↓
-                    Redis (Cache + Queue)
-                        ↓
-                   Celery Workers
+                   Prometheus ←→ Grafana
 ```
 
 ### Мультитенантность
@@ -90,11 +94,13 @@ Frontend (React) ←→ API (Django) ←→ PostgreSQL
 cd backend
 python3.11 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r ../requirements.txt
+pip install -r ../requirements-dev.txt
 
 # Frontend  
 cd frontend
 npm install
+npm run generate-icons
 
 # Базы данных
 sudo apt install postgresql redis-server
@@ -122,11 +128,18 @@ portal-support-ERP-WorkerNet/
 python manage.py runserver    # Запуск сервера
 python manage.py migrate      # Миграции
 python manage.py test         # Тесты
+python manage.py collectstatic # Сбор статических файлов
 
 # Frontend
-npm start                     # Запуск dev сервера
+npm run dev                   # Запуск dev сервера
 npm test                      # Запуск тестов
 npm run build                 # Сборка для продакшна
+npm run lint                  # Проверка кода
+
+# Docker
+docker compose up -d          # Запуск всех сервисов
+docker compose down           # Остановка сервисов
+docker compose logs -f        # Просмотр логов
 ```
 
 ---
@@ -135,10 +148,10 @@ npm run build                 # Сборка для продакшна
 
 ### Системные требования
 
-- **ОС**: Ubuntu 24.04 LTS (рекомендуется)
-- **CPU**: 2+ ядра
-- **RAM**: 4+ GB
-- **Диск**: 20+ GB SSD
+- **ОС**: Ubuntu 22.04 LTS / 24.04 LTS (рекомендуется)
+- **CPU**: 4+ ядра (рекомендуется 8 для production)
+- **RAM**: 8+ GB (рекомендуется 16 GB для production)
+- **Диск**: 50+ GB SSD (рекомендуется 100+ GB для production)
 - **Сеть**: Интернет соединение
 
 ### Установка на Ubuntu
@@ -156,11 +169,17 @@ chmod +x install-ubuntu.sh
 # Создать .env файл
 cp env.example .env
 
+# Отредактировать .env файл
+nano .env
+
 # Запустить все сервисы
 docker compose up -d
 
 # Проверить статус
 docker compose ps
+
+# Просмотр логов
+docker compose logs -f
 ```
 
 ### Настройка Nginx
@@ -428,6 +447,8 @@ MIT License - см. файл LICENSE для деталей.
 | Docs | http://YOUR_DOMAIN_OR_IP:8000/api/docs/ | API документация |
 | Grafana | http://YOUR_DOMAIN_OR_IP:3001 | Мониторинг |
 | Prometheus | http://YOUR_DOMAIN_OR_IP:9090 | Метрики |
+| Celery Flower | http://YOUR_DOMAIN_OR_IP:5555 | Мониторинг задач |
+| Kibana | http://YOUR_DOMAIN_OR_IP:5601 | Логи и аналитика |
 
 **Примеры для локальной сети:**
 - `http://192.168.1.100:3000` - Web App

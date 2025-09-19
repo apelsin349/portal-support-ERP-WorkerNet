@@ -148,10 +148,10 @@ early_update_repository() {
                 [ -n "$REPO_URL" ] && [ "$ORIGIN_URL" != "$REPO_URL" ] && git remote set-url origin "$REPO_URL" || true
                 git fetch --all --prune || true
                 # Выбор ветки
-                BR=${REPO_BRANCH:-$(git remote show origin | awk '/HEAD branch/ {print $NF}')}
+                BR=${SELECTED_BRANCH:-${REPO_BRANCH:-$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")}}
                 BR=${BR:-main}
                 git checkout "$BR" 2>/dev/null || git checkout -B "$BR" || true
-                git reset --hard "origin/$BR" || true
+                git reset --hard "origin/$BR" 2>/dev/null || git reset --hard "origin/main" 2>/dev/null || git reset --hard "origin/master" 2>/dev/null || true
                 git submodule update --init --recursive || true
             )
             export WORKERNET_ROOT="$dir"
@@ -695,6 +695,80 @@ create_project_directory() {
     print_success "Временный каталог проекта создан: $PROJECT_DIR"
 }
 
+# Выбор ветки Git
+select_branch() {
+    local target_branch="${1:-}"
+    
+    # Если ветка указана через аргумент или переменную окружения
+    if [ -n "$target_branch" ]; then
+        SELECTED_BRANCH="$target_branch"
+        print_status "Выбрана ветка: $SELECTED_BRANCH"
+        return 0
+    fi
+    
+    # Если ветка указана через переменную окружения
+    if [ -n "${WORKERNET_BRANCH:-}" ]; then
+        SELECTED_BRANCH="$WORKERNET_BRANCH"
+        print_status "Выбрана ветка из переменной окружения: $SELECTED_BRANCH"
+        return 0
+    fi
+    
+    # Если неинтерактивный режим, используем main
+    if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
+        SELECTED_BRANCH="main"
+        print_status "Неинтерактивный режим: используем ветку $SELECTED_BRANCH"
+        return 0
+    fi
+    
+    # Интерактивный выбор ветки
+    echo
+    print_status "Выберите ветку для установки:"
+    echo "1) main (стабильная версия)"
+    echo "2) develop (версия для разработки)"
+    echo "3) Указать другую ветку"
+    echo "4) Использовать main (по умолчанию)"
+    echo
+    
+    while true; do
+        read -p "Введите номер (1-4) или название ветки: " choice
+        
+        case "$choice" in
+            1|main)
+                SELECTED_BRANCH="main"
+                break
+                ;;
+            2|develop)
+                SELECTED_BRANCH="develop"
+                break
+                ;;
+            3)
+                read -p "Введите название ветки: " custom_branch
+                if [ -n "$custom_branch" ]; then
+                    SELECTED_BRANCH="$custom_branch"
+                    break
+                else
+                    print_error "Название ветки не может быть пустым"
+                fi
+                ;;
+            4|"")
+                SELECTED_BRANCH="main"
+                break
+                ;;
+            *)
+                # Проверяем, не введено ли название ветки напрямую
+                if [[ "$choice" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
+                    SELECTED_BRANCH="$choice"
+                    break
+                else
+                    print_error "Неверный выбор. Введите номер (1-4) или название ветки"
+                fi
+                ;;
+        esac
+    done
+    
+    print_status "Выбрана ветка: $SELECTED_BRANCH"
+}
+
 # Клонирование/обновление репозитория
 clone_repository() {
     print_status "Клонируем/обновляем репозиторий..."
@@ -735,20 +809,23 @@ clone_repository() {
         git remote set-url origin "$REPO_URL" || true
     fi
 
-    # Обновляем ссылки и жёстко синхронизируемся с нужной веткой
+    # Обновляем ссылки и жёстко синхронизируемся с выбранной веткой
     git fetch --all --prune || true
-    # Determine default branch if requested not found
-    if ! git show-ref --verify --quiet "refs/remotes/origin/$REPO_BRANCH"; then
-        REPO_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
-        REPO_BRANCH=${REPO_BRANCH:-main}
-        print_warning "Запрошенная ветка не найдена; используем ветку по умолчанию: $REPO_BRANCH"
+    
+    # Проверяем, существует ли выбранная ветка на удаленном репозитории
+    if ! git show-ref --verify --quiet "refs/remotes/origin/$SELECTED_BRANCH"; then
+        print_error "Ветка '$SELECTED_BRANCH' не найдена на удаленном репозитории"
+        print_status "Доступные ветки:"
+        git branch -r | grep -v HEAD | sed 's/origin\///' | sort -u | sed 's/^/  - /'
+        print_status "Используем ветку main по умолчанию"
+        SELECTED_BRANCH="main"
     fi
 
-    git checkout "$REPO_BRANCH" 2>/dev/null || git checkout -B "$REPO_BRANCH"
-    git reset --hard "origin/$REPO_BRANCH" || true
+    git checkout "$SELECTED_BRANCH" 2>/dev/null || git checkout -B "$SELECTED_BRANCH" "origin/$SELECTED_BRANCH" 2>/dev/null || true
+    git reset --hard "origin/$SELECTED_BRANCH" 2>/dev/null || true
     git submodule update --init --recursive || true
 
-    print_success "Репозиторий актуален (ветка: $REPO_BRANCH)"
+    print_success "Репозиторий актуален (ветка: $SELECTED_BRANCH)"
 
     # Проверяем наличие фронтенда, если он обязателен
     if [ "${WORKERNET_REQUIRE_FRONTEND:-true}" = "true" ]; then
@@ -1054,6 +1131,34 @@ setup_nodejs_env() {
     fi
     
     print_success "Окружение Node.js настроено"
+}
+
+# Сборка фронтенда с PWA
+build_frontend() {
+    if [ -z "$FRONTEND_DIR" ]; then
+        print_warning "Каталог фронтенда не найден — пропускаем сборку"
+        return 0
+    fi
+
+    print_status "Собираем фронтенд с PWA поддержкой..."
+    
+    cd "$FRONTEND_DIR"
+    
+    # Генерируем иконки для PWA
+    if [ -f "scripts/generate-icons.js" ]; then
+        print_status "Генерируем иконки для PWA..."
+        node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+    fi
+    
+    # Собираем фронтенд для production
+    print_status "Собираем фронтенд для production..."
+    if npm run build; then
+        print_success "Фронтенд собран успешно"
+    else
+        print_warning "Ошибка сборки фронтенда — продолжаем без сборки"
+    fi
+    
+    print_success "Сборка фронтенда завершена"
 }
 
 # Проверка и исправление базы данных
@@ -1705,12 +1810,12 @@ check_for_updates() {
     }
     
     # Получаем информацию о текущей ветке
-    CURRENT_BRANCH=$(git branch --show-current)
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD)
     git fetch --all --prune
     
     # Проверяем наличие новых коммитов
     LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH")
+    REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || git rev-parse "origin/main" 2>/dev/null || git rev-parse "origin/master" 2>/dev/null)
     
     if [ "$LOCAL" = "$REMOTE" ]; then
         print_status "Обновления не найдены"
@@ -1878,12 +1983,14 @@ main() {
         
         # Project setup
         create_project_directory
+        select_branch
         clone_repository
         setup_environment
         # Гарантируем наличие каталога логов бэкенда до миграций
         mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
         setup_python_env
         setup_nodejs_env
+        build_frontend
         
         # Database and Redis setup (ПЕРЕД миграциями!)
         setup_database
@@ -1910,5 +2017,39 @@ main() {
     fi
 }
 
-# Run main function
-main "$@"
+# Обработка аргументов
+case "${1:-}" in
+    --help|-h)
+        echo "Скрипт установки WorkerNet Portal для Ubuntu 24.04 LTS"
+        echo
+        echo "Использование: $0 [опции]"
+        echo
+        echo "Опции:"
+        echo "  --help, -h     Показать эту справку"
+        echo "  --branch BRANCH Указать ветку для установки"
+        echo
+        echo "Переменные окружения:"
+        echo "  WORKERNET_BRANCH=BRANCH     Ветка для установки"
+        echo "  WORKERNET_NONINTERACTIVE=1  Неинтерактивный режим"
+        echo "  WORKERNET_SELF_UPDATE=1     Самообновление скрипта"
+        echo
+        echo "Примеры:"
+        echo "  $0 --branch develop        Установить ветку develop"
+        echo "  $0 --branch feature/new    Установить ветку feature/new"
+        echo "  WORKERNET_BRANCH=main $0   Установить ветку main через переменную"
+        echo
+        exit 0
+        ;;
+    --branch)
+        if [ -z "${2:-}" ]; then
+            print_error "Не указана ветка для --branch"
+            echo "Использование: $0 --branch BRANCH_NAME"
+            exit 1
+        fi
+        export WORKERNET_BRANCH="$2"
+        main "$@"
+        ;;
+    *)
+        main "$@"
+        ;;
+esac
