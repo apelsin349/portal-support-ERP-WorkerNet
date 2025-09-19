@@ -35,10 +35,17 @@ docker compose up -d
 
 ### Доступ к приложению
 
-- **Web интерфейс**: http://localhost:3000
-- **API**: http://localhost:8000/api/v1/
-- **Админ панель**: http://localhost:8000/admin/
-- **Документация API**: http://localhost:8000/api/docs/
+**⚠️ Замените `localhost` на ваш домен или IP-адрес сервера!**
+
+- **Web интерфейс**: http://YOUR_DOMAIN_OR_IP:3000
+- **API**: http://YOUR_DOMAIN_OR_IP:8000/api/v1/
+- **Админ панель**: http://YOUR_DOMAIN_OR_IP:8000/admin/
+- **Документация API**: http://YOUR_DOMAIN_OR_IP:8000/api/docs/
+
+**Примеры:**
+- `http://192.168.1.100:3000` - для локальной сети
+- `http://yourdomain.com:3000` - для домена
+- `https://portal.yourdomain.com` - с SSL и Nginx
 
 ### Первоначальные учетные данные
 
@@ -411,14 +418,20 @@ MIT License - см. файл LICENSE для деталей.
 
 ## 🔗 Быстрые ссылки
 
+**⚠️ Замените `YOUR_DOMAIN_OR_IP` на ваш домен или IP-адрес!**
+
 | Компонент | URL | Описание |
 |-----------|-----|----------|
-| Web App | http://localhost:3000 | Основное приложение |
-| API | http://localhost:8000/api/v1/ | REST API |
-| Admin | http://localhost:8000/admin/ | Админ панель |
-| Docs | http://localhost:8000/api/docs/ | API документация |
-| Grafana | http://localhost:3001 | Мониторинг |
-| Prometheus | http://localhost:9090 | Метрики |
+| Web App | http://YOUR_DOMAIN_OR_IP:3000 | Основное приложение |
+| API | http://YOUR_DOMAIN_OR_IP:8000/api/v1/ | REST API |
+| Admin | http://YOUR_DOMAIN_OR_IP:8000/admin/ | Админ панель |
+| Docs | http://YOUR_DOMAIN_OR_IP:8000/api/docs/ | API документация |
+| Grafana | http://YOUR_DOMAIN_OR_IP:3001 | Мониторинг |
+| Prometheus | http://YOUR_DOMAIN_OR_IP:9090 | Метрики |
+
+**Примеры для локальной сети:**
+- `http://192.168.1.100:3000` - Web App
+- `http://192.168.1.100:8000/api/v1/` - API
 
 ---
 

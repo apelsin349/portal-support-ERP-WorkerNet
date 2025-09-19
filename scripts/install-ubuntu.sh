@@ -19,6 +19,9 @@ REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP
 REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
 REPO_BRANCH="${WORKERNET_BRANCH:-main}"
 
+# Server configuration (can be overridden via env)
+SERVER_DOMAIN_OR_IP="${WORKERNET_DOMAIN_OR_IP:-$(hostname -I | awk '{print $1}')}"
+
 # NPM registry and proxy configuration (tunable for restricted networks)
 NPM_REGISTRY_DEFAULT="https://registry.npmmirror.com"
 NPM_REGISTRY="${NPM_REGISTRY:-$NPM_REGISTRY_DEFAULT}"
@@ -442,8 +445,8 @@ verify_monitoring_stack() {
 
     # Проверка портов
     if command -v curl >/dev/null 2>&1; then
-        curl -fsS http://localhost:9090 >/dev/null 2>&1 && print_success "Prometheus UI доступен: http://localhost:9090" || { print_warning "Prometheus UI недоступен: http://localhost:9090"; ok=false; }
-        curl -fsS http://localhost:3000 >/dev/null 2>&1 && print_success "Grafana UI доступна: http://localhost:3000 (admin/admin)" || { print_warning "Grafana UI недоступна: http://localhost:3000"; ok=false; }
+        curl -fsS http://${SERVER_DOMAIN_OR_IP}:9090 >/dev/null 2>&1 && print_success "Prometheus UI доступен: http://${SERVER_DOMAIN_OR_IP}:9090" || { print_warning "Prometheus UI недоступен: http://${SERVER_DOMAIN_OR_IP}:9090"; ok=false; }
+        curl -fsS http://${SERVER_DOMAIN_OR_IP}:3001 >/dev/null 2>&1 && print_success "Grafana UI доступна: http://${SERVER_DOMAIN_OR_IP}:3001 (admin/admin)" || { print_warning "Grafana UI недоступна: http://${SERVER_DOMAIN_OR_IP}:3001"; ok=false; }
     fi
 
     if [ "$ok" = true ]; then
@@ -1317,10 +1320,12 @@ show_final_info() {
     print_success "Установка WorkerNet Portal успешно завершена!"
     echo
     echo "=== Доступ к сервисам ==="
-    echo "Фронтенд: http://localhost:3000"
-    echo "API: http://localhost:8000"
-    echo "API документация: http://localhost:8000/api/docs"
-    echo "Админ‑панель: http://localhost:8000/admin"
+    echo "Фронтенд: http://${SERVER_DOMAIN_OR_IP}:3000"
+    echo "API: http://${SERVER_DOMAIN_OR_IP}:8000"
+    echo "API документация: http://${SERVER_DOMAIN_OR_IP}:8000/api/docs"
+    echo "Админ‑панель: http://${SERVER_DOMAIN_OR_IP}:8000/admin"
+    echo
+    echo "⚠️  Для доступа извне замените ${SERVER_DOMAIN_OR_IP} на ваш домен или IP-адрес"
     # Мониторинг (Grafana/Prometheus) не устанавливается этим скриптом
     echo
     echo "=== Данные по умолчанию ==="
@@ -1345,7 +1350,7 @@ show_final_info() {
     echo "Статус всех: sudo systemctl status workernet-backend workernet-frontend"
     echo
     echo "=== Следующие шаги ==="
-    echo "1. Откройте приложение: http://localhost:3000"
+    echo "1. Откройте приложение: http://${SERVER_DOMAIN_OR_IP}:3000"
     echo "2. Войдите: admin/admin123"
     echo "3. Настройте параметры тенанта"
     echo "4. Настройте SSL‑сертификаты для продакшена"
@@ -1741,9 +1746,9 @@ main() {
         sudo systemctl status workernet-frontend --no-pager -l
         echo
         echo "=== Доступ к сервисам ==="
-        echo "Фронтенд: http://localhost:3000"
-        echo "API: http://localhost:8000"
-        echo "Админ‑панель: http://localhost:8000/admin"
+        echo "Фронтенд: http://${SERVER_DOMAIN_OR_IP}:3000"
+        echo "API: http://${SERVER_DOMAIN_OR_IP}:8000"
+        echo "Админ‑панель: http://${SERVER_DOMAIN_OR_IP}:8000/admin"
         echo
         echo "=== Управление сервисами ==="
         echo "Перезапуск: sudo systemctl restart workernet-backend workernet-frontend"

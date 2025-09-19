@@ -32,6 +32,9 @@ print_error() {
 # Версия скрипта
 SCRIPT_VERSION="2025-09-18.1"
 
+# Server configuration (can be overridden via env)
+SERVER_DOMAIN_OR_IP="${WORKERNET_DOMAIN_OR_IP:-$(hostname -I | awk '{print $1}')}"
+
 # Самообновление скрипта с GitHub raw
 self_update_script() {
   if [ "${WORKERNET_SELF_UPDATE:-0}" != "1" ] && [ "${1:-}" != "--self-update" ]; then
@@ -275,9 +278,11 @@ show_status() {
     sudo systemctl status workernet-frontend --no-pager -l
     echo
     echo "=== Доступ к сервисам ==="
-    echo "Фронтенд: http://localhost:3000"
-    echo "API: http://localhost:8000"
-    echo "Админ‑панель: http://localhost:8000/admin"
+    echo "Фронтенд: http://${SERVER_DOMAIN_OR_IP}:3000"
+    echo "API: http://${SERVER_DOMAIN_OR_IP}:8000"
+    echo "Админ‑панель: http://${SERVER_DOMAIN_OR_IP}:8000/admin"
+    echo
+    echo "⚠️  Для доступа извне замените ${SERVER_DOMAIN_OR_IP} на ваш домен или IP-адрес"
     echo
     echo "=== Управление сервисами ==="
     echo "Перезапуск: sudo systemctl restart workernet-backend workernet-frontend"
