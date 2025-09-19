@@ -393,10 +393,18 @@ install_monitoring_stack() {
     print_status "Устанавливаем Prometheus и Grafana..."
 
     # Репозиторий Grafana
-    if ! grep -q "packages.grafana.com" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-        print_status "Добавляем репозиторий Grafana..."
-        wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add - >/dev/null 2>&1 || true
-        echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list >/dev/null
+    # Удаляем устаревшие записи repos/keys (идемпотентно)
+    if grep -q "packages.grafana.com" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        print_status "Удаляем устаревший репозиторий packages.grafana.com..."
+        sudo rm -f /etc/apt/sources.list.d/grafana.list /etc/apt/sources.list.d/grafana-oss.list || true
+    fi
+    # Настраиваем актуальный репозиторий apt.grafana.com с keyring
+    if ! grep -q "apt.grafana.com" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+        print_status "Добавляем репозиторий Grafana (apt.grafana.com) и ключ..."
+        sudo install -m 0755 -d /etc/apt/keyrings || true
+        curl -fsSL https://apt.grafana.com/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/grafana.gpg || true
+        sudo chmod a+r /etc/apt/keyrings/grafana.gpg || true
+        echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list >/dev/null
     fi
 
     sudo apt update -y
