@@ -15,7 +15,7 @@ else
 fi
 
 # Repository configuration (can be overridden via env)
-REPO_URL="${WORKERNET_REPO_URL:-https://github.com/apelsin349/portal-support-ERP-WorkerNet.git}"
+REPO_URL="${WORKERNET_REPO_URL:-}"
 REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
 REPO_BRANCH="${WORKERNET_BRANCH:-main}"
 
@@ -69,6 +69,59 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[ОШИБКА]${NC} $1"
+}
+
+# Выбор Git репозитория
+select_repository() {
+    # Если URL уже задан через переменную окружения, используем его
+    if [ -n "$REPO_URL" ]; then
+        print_status "Используем репозиторий из переменной окружения: $REPO_URL"
+        return 0
+    fi
+    
+    # Если неинтерактивный режим, используем репозиторий по умолчанию
+    if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
+        REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+        print_status "Неинтерактивный режим: используем репозиторий по умолчанию: $REPO_URL"
+        return 0
+    fi
+    
+    # Интерактивный выбор репозитория
+    echo
+    print_status "Выберите Git репозиторий для установки:"
+    echo "1) Основной репозиторий (github.com/apelsin349/portal-support-ERP-WorkerNet)"
+    echo "2) Указать другой репозиторий"
+    echo "3) Использовать основной (по умолчанию)"
+    echo
+    
+    while true; do
+        read -p "Введите номер (1-3): " choice
+        
+        case "$choice" in
+            1)
+                REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+                break
+                ;;
+            2)
+                read -p "Введите URL репозитория: " custom_repo
+                if [ -n "$custom_repo" ]; then
+                    REPO_URL="$custom_repo"
+                    break
+                else
+                    print_error "URL репозитория не может быть пустым"
+                fi
+                ;;
+            3|"")
+                REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+                break
+                ;;
+            *)
+                print_error "Неверный выбор. Введите номер (1-3)"
+                ;;
+        esac
+    done
+    
+    print_status "Выбран репозиторий: $REPO_URL"
 }
 
 ok() {
@@ -1438,6 +1491,9 @@ main() {
     fi
     
     print_status "Выбран режим установки: $INSTALLATION_MODE"
+    
+    # Выбираем репозиторий (если не задан через переменные окружения)
+    select_repository
     
     # Выполняем установку в зависимости от выбранного режима
     if [ "$INSTALLATION_MODE" = "update" ]; then

@@ -23,6 +23,7 @@
 - Обнаружение директорий проекта
 - Проверка базы данных
 - Автоматический выбор режима работы
+- Интерактивный выбор Git репозитория
 
 ### 🛡️ Надежность
 - Самообновление скрипта
@@ -58,6 +59,9 @@ WORKERNET_NONINTERACTIVE=1 ./scripts/universal-install-update.sh
 
 # Указание ветки
 WORKERNET_BRANCH=feature/new ./scripts/universal-install-update.sh
+
+# Указание репозитория
+WORKERNET_REPO_URL=https://github.com/user/repo.git ./scripts/universal-install-update.sh
 
 # Самообновление скрипта
 WORKERNET_SELF_UPDATE=1 ./scripts/universal-install-update.sh
