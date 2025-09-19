@@ -1,21 +1,18 @@
 #!/bin/bash
 
-# Скрипт для исправления конфликтов миграций
+# Экстренное исправление проблемы с миграциями
+echo "[ЭКСТРЕННОЕ ИСПРАВЛЕНИЕ] Начинаем исправление проблемы с миграциями..."
 
-echo "[ИНФО] Исправляем конфликты миграций..."
-
-# Переходим в директорию backend
 cd backend
 
-# Проверяем, активировано ли виртуальное окружение
+# Активируем виртуальное окружение
 if [[ "$VIRTUAL_ENV" == "" ]]; then
     echo "[ИНФО] Активируем виртуальное окружение..."
     source venv/bin/activate
 fi
 
-# Сначала исправляем проблему с ограничением
-echo "[ИНФО] Исправляем проблему с ограничением unique_username_per_tenant..."
-python manage.py dbshell << 'EOF' 2>/dev/null || true
+echo "[ИНФО] Шаг 1: Исправляем ограничение unique_username_per_tenant..."
+python manage.py dbshell << 'EOF'
 DO $$ 
 BEGIN
     IF EXISTS (
@@ -32,17 +29,15 @@ BEGIN
 END $$;
 EOF
 
-# Очищаем проблемные записи миграций
-echo "[ИНФО] Очищаем проблемные записи миграций..."
-python manage.py dbshell << 'EOF' 2>/dev/null || true
+echo "[ИНФО] Шаг 2: Удаляем проблемные записи миграций..."
+python manage.py dbshell << 'EOF'
 DELETE FROM django_migrations 
-WHERE app = 'app' AND name LIKE '%0008%' OR name LIKE '%0009%';
+WHERE app = 'app' AND (name LIKE '%0008%' OR name LIKE '%0009%');
 EOF
 
-# Создаем отсутствующие таблицы
-echo "[ИНФО] Создаем отсутствующие таблицы..."
-python manage.py dbshell << 'EOF' 2>/dev/null || true
--- Создаем таблицу agent_ratings если её нет
+echo "[ИНФО] Шаг 3: Создаем отсутствующие таблицы..."
+python manage.py dbshell << 'EOF'
+-- Создаем таблицу agent_ratings
 CREATE TABLE IF NOT EXISTS agent_ratings (
     id BIGSERIAL PRIMARY KEY,
     agent_id BIGINT NOT NULL,
@@ -59,7 +54,7 @@ CREATE TABLE IF NOT EXISTS agent_ratings (
     UNIQUE (agent_id, rated_by_id, ticket_id)
 );
 
--- Создаем таблицу incidents если её нет
+-- Создаем таблицу incidents
 CREATE TABLE IF NOT EXISTS incidents (
     id BIGSERIAL PRIMARY KEY,
     incident_id VARCHAR(20) NOT NULL UNIQUE,
@@ -85,7 +80,7 @@ CREATE TABLE IF NOT EXISTS incidents (
     custom_fields JSONB NOT NULL DEFAULT '{}'
 );
 
--- Создаем таблицу incident_attachments если её нет
+-- Создаем таблицу incident_attachments
 CREATE TABLE IF NOT EXISTS incident_attachments (
     id BIGSERIAL PRIMARY KEY,
     incident_id BIGINT NOT NULL,
@@ -97,7 +92,7 @@ CREATE TABLE IF NOT EXISTS incident_attachments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Создаем таблицу incident_updates если её нет
+-- Создаем таблицу incident_updates
 CREATE TABLE IF NOT EXISTS incident_updates (
     id BIGSERIAL PRIMARY KEY,
     incident_id BIGINT NOT NULL,
@@ -109,7 +104,7 @@ CREATE TABLE IF NOT EXISTS incident_updates (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Создаем таблицу incident_timeline если её нет
+-- Создаем таблицу incident_timeline
 CREATE TABLE IF NOT EXISTS incident_timeline (
     id BIGSERIAL PRIMARY KEY,
     incident_id BIGINT NOT NULL,
@@ -120,7 +115,7 @@ CREATE TABLE IF NOT EXISTS incident_timeline (
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Создаем таблицу incident_escalations если её нет
+-- Создаем таблицу incident_escalations
 CREATE TABLE IF NOT EXISTS incident_escalations (
     id BIGSERIAL PRIMARY KEY,
     incident_id BIGINT NOT NULL,
@@ -133,7 +128,7 @@ CREATE TABLE IF NOT EXISTS incident_escalations (
     acknowledged_at TIMESTAMPTZ
 );
 
--- Создаем таблицу incident_slas если её нет
+-- Создаем таблицу incident_slas
 CREATE TABLE IF NOT EXISTS incident_slas (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -148,29 +143,31 @@ CREATE TABLE IF NOT EXISTS incident_slas (
     UNIQUE (tenant_id, severity)
 );
 
--- Создаем таблицу app_incident_tags если её нет
+-- Создаем таблицу app_incident_tags
 CREATE TABLE IF NOT EXISTS app_incident_tags (
     id BIGSERIAL PRIMARY KEY,
     incident_id BIGINT NOT NULL,
     tag_id BIGINT NOT NULL,
     UNIQUE (incident_id, tag_id)
 );
+EOF
 
--- Создаем запись о выполненной миграции 0008
+echo "[ИНФО] Шаг 4: Создаем запись о выполненной миграции 0008..."
+python manage.py dbshell << 'EOF'
 INSERT INTO django_migrations (app, name, applied) 
 VALUES ('app', '0008_agentrating_incident_incidentattachment_and_more', NOW())
 ON CONFLICT (app, name) DO NOTHING;
 EOF
 
-# Помечаем все проблемные миграции как выполненные
-echo "[ИНФО] Помечаем проблемные миграции как выполненные..."
+echo "[ИНФО] Шаг 5: Помечаем миграции как выполненные..."
 python manage.py migrate app 0008 --fake 2>/dev/null || true
-python manage.py migrate app 0009 --fake 2>/dev/null || true
 python manage.py migrate app 0010 --fake 2>/dev/null || true
-python manage.py migrate app 0011 --fake 2>/dev/null || true
 
-# Выполняем миграции
-echo "[ИНФО] Выполняем миграции..."
+echo "[ИНФО] Шаг 6: Выполняем финальные миграции..."
 python manage.py migrate
 
-echo "[УСПЕХ] Конфликты миграций исправлены!"
+echo "[УСПЕХ] Экстренное исправление завершено!"
+echo "[ИНФО] Проверяем состояние миграций..."
+python manage.py showmigrations app
+
+echo "[ИНФО] Проект готов к работе!"

@@ -550,9 +550,14 @@ run_migrations() {
         fi
 
         if command -v python >/dev/null 2>&1; then
-            # Исправляем проблему с несуществующим ограничением
-            print_status "Исправляем проблему с миграциями..."
-            python manage.py dbshell << 'EOF' 2>/dev/null || true
+            # Используем экстренный скрипт исправления миграций
+            if [ -f "../scripts/emergency-migration-fix.sh" ]; then
+                print_status "Используем экстренный скрипт исправления миграций..."
+                bash ../scripts/emergency-migration-fix.sh
+            else
+                # Резервный метод исправления
+                print_status "Исправляем проблему с миграциями (резервный метод)..."
+                python manage.py dbshell << 'EOF' 2>/dev/null || true
 DO $$ 
 BEGIN
     IF EXISTS (
@@ -568,21 +573,135 @@ BEGIN
     END IF;
 END $$;
 EOF
-            
-            # Проверяем конфликты миграций и исправляем их
-            print_status "Проверяем конфликты миграций..."
-            if python manage.py showmigrations app 2>&1 | grep -q "Conflicting migrations detected"; then
-                print_status "Обнаружен конфликт миграций, создаем merge миграцию..."
-                # Создаем merge миграцию
-                python manage.py makemigrations --merge app --empty 2>/dev/null || true
-                # Помечаем все проблемные миграции как выполненные
+                
+                # Удаляем проблемные записи миграций
+                python manage.py dbshell << 'EOF' 2>/dev/null || true
+DELETE FROM django_migrations 
+WHERE app = 'app' AND (name LIKE '%0008%' OR name LIKE '%0009%');
+EOF
+                
+                # Создаем отсутствующие таблицы
+                python manage.py dbshell << 'EOF' 2>/dev/null || true
+CREATE TABLE IF NOT EXISTS agent_ratings (
+    id BIGSERIAL PRIMARY KEY,
+    agent_id BIGINT NOT NULL,
+    rated_by_id BIGINT NOT NULL,
+    ticket_id BIGINT NOT NULL,
+    professionalism_rating INTEGER NOT NULL CHECK (professionalism_rating >= 1 AND professionalism_rating <= 5),
+    knowledge_rating INTEGER NOT NULL CHECK (knowledge_rating >= 1 AND knowledge_rating <= 5),
+    communication_rating INTEGER NOT NULL CHECK (communication_rating >= 1 AND communication_rating <= 5),
+    problem_solving_rating INTEGER NOT NULL CHECK (problem_solving_rating >= 1 AND problem_solving_rating <= 5),
+    overall_rating INTEGER NOT NULL CHECK (overall_rating >= 1 AND overall_rating <= 5),
+    comment TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (agent_id, rated_by_id, ticket_id)
+);
+
+CREATE TABLE IF NOT EXISTS incidents (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id VARCHAR(20) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    severity VARCHAR(10) NOT NULL CHECK (severity IN ('P1', 'P2', 'P3', 'P4')),
+    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'investigating', 'identified', 'monitoring', 'resolved', 'closed')),
+    category VARCHAR(20) NOT NULL CHECK (category IN ('infrastructure', 'application', 'security', 'data', 'integration', 'user_experience')),
+    reported_by_id BIGINT NOT NULL,
+    assigned_to_id BIGINT,
+    tenant_id BIGINT NOT NULL,
+    affected_services JSONB NOT NULL DEFAULT '[]',
+    business_impact TEXT NOT NULL DEFAULT '',
+    user_impact TEXT NOT NULL DEFAULT '',
+    detected_at TIMESTAMPTZ NOT NULL,
+    resolved_at TIMESTAMPTZ,
+    closed_at TIMESTAMPTZ,
+    response_time_minutes INTEGER,
+    resolution_time_minutes INTEGER,
+    sla_breached BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    custom_fields JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS incident_attachments (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT NOT NULL,
+    uploaded_by_id BIGINT NOT NULL,
+    file VARCHAR(100) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    file_size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS incident_updates (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    update_type VARCHAR(20) NOT NULL CHECK (update_type IN ('status_change', 'investigation', 'resolution', 'communication', 'escalation')),
+    is_public BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS incident_timeline (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT NOT NULL,
+    event_type VARCHAR(30) NOT NULL CHECK (event_type IN ('created', 'assigned', 'status_changed', 'escalated', 'resolved', 'closed', 'comment_added', 'attachment_added')),
+    description TEXT NOT NULL,
+    author_id BIGINT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS incident_escalations (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT NOT NULL,
+    level INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    escalated_to_id BIGINT NOT NULL,
+    escalated_by_id BIGINT NOT NULL,
+    escalated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+    acknowledged_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS incident_slas (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    severity VARCHAR(10) NOT NULL CHECK (severity IN ('P1', 'P2', 'P3', 'P4')),
+    response_time_minutes INTEGER NOT NULL,
+    resolution_time_minutes INTEGER NOT NULL,
+    tenant_id BIGINT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, severity)
+);
+
+CREATE TABLE IF NOT EXISTS app_incident_tags (
+    id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    UNIQUE (incident_id, tag_id)
+);
+
+-- Создаем запись о выполненной миграции 0008
+INSERT INTO django_migrations (app, name, applied) 
+VALUES ('app', '0008_agentrating_incident_incidentattachment_and_more', NOW())
+ON CONFLICT (app, name) DO NOTHING;
+EOF
+                
+                # Помечаем миграции как выполненные
                 python manage.py migrate app 0008 --fake 2>/dev/null || true
-                python manage.py migrate app 0009 --fake 2>/dev/null || true
                 python manage.py migrate app 0010 --fake 2>/dev/null || true
             fi
             
-            # Выполняем миграции
-            python manage.py migrate --fake-initial || { print_error "Ошибка выполнения миграций"; return 1; }
+            # Выполняем финальные миграции
+            print_status "Выполняем финальные миграции..."
+            python manage.py migrate || { print_error "Ошибка выполнения миграций"; return 1; }
             python manage.py collectstatic --noinput || true
             print_success "Миграции выполнены"
         else
