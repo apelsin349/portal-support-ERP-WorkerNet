@@ -205,6 +205,31 @@ update_nodejs_deps() {
     fi
 }
 
+# Сборка фронтенда с PWA
+build_frontend() {
+    if [ -d "$PROJECT_DIR/frontend" ]; then
+        print_status "Собираем фронтенд с PWA поддержкой..."
+        
+        cd "$PROJECT_DIR/frontend"
+        
+        # Генерируем иконки для PWA
+        if [ -f "scripts/generate-icons.js" ]; then
+            print_status "Генерируем иконки для PWA..."
+            node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+        fi
+        
+        # Собираем фронтенд для production
+        print_status "Собираем фронтенд для production..."
+        if npm run build; then
+            print_success "Фронтенд собран успешно"
+        else
+            print_warning "Ошибка сборки фронтенда — продолжаем без сборки"
+        fi
+    else
+        print_warning "Директория frontend не найдена — пропускаем сборку"
+    fi
+}
+
 # Выполнение миграций
 run_migrations() {
     if [ -d "$PROJECT_DIR/backend" ]; then
@@ -323,6 +348,7 @@ main() {
     update_code
     update_python_deps
     update_nodejs_deps
+    build_frontend
     run_migrations
     start_services
     show_status
@@ -364,6 +390,7 @@ case "${1:-}" in
         update_code
         update_python_deps
         update_nodejs_deps
+        build_frontend
         run_migrations
         start_services
         show_status

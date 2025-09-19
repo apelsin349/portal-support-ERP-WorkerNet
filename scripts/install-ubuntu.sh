@@ -1056,6 +1056,34 @@ setup_nodejs_env() {
     print_success "Окружение Node.js настроено"
 }
 
+# Сборка фронтенда с PWA
+build_frontend() {
+    if [ -z "$FRONTEND_DIR" ]; then
+        print_warning "Каталог фронтенда не найден — пропускаем сборку"
+        return 0
+    fi
+
+    print_status "Собираем фронтенд с PWA поддержкой..."
+    
+    cd "$FRONTEND_DIR"
+    
+    # Генерируем иконки для PWA
+    if [ -f "scripts/generate-icons.js" ]; then
+        print_status "Генерируем иконки для PWA..."
+        node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+    fi
+    
+    # Собираем фронтенд для production
+    print_status "Собираем фронтенд для production..."
+    if npm run build; then
+        print_success "Фронтенд собран успешно"
+    else
+        print_warning "Ошибка сборки фронтенда — продолжаем без сборки"
+    fi
+    
+    print_success "Сборка фронтенда завершена"
+}
+
 # Проверка и исправление базы данных
 check_and_fix_database() {
     print_status "Проверяем и исправляем базу данных..."
@@ -1884,6 +1912,7 @@ main() {
         mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
         setup_python_env
         setup_nodejs_env
+        build_frontend
         
         # Database and Redis setup (ПЕРЕД миграциями!)
         setup_database

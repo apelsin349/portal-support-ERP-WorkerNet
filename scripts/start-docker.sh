@@ -74,6 +74,12 @@ create_directories() {
 build_images() {
     print_status "Building Docker images..."
     
+    # Build frontend with PWA support
+    print_status "Building frontend with PWA support..."
+    docker-compose build --no-cache frontend
+    
+    # Build other services
+    print_status "Building other services..."
     docker-compose build --no-cache
     
     print_success "Docker images built successfully"
@@ -212,13 +218,19 @@ show_final_info() {
     print_success "WorkerNet Portal is now running!"
     echo
     echo "=== Access Information ==="
-    echo "Frontend: http://localhost:3000"
+    echo "Frontend (PWA): http://localhost:3000"
     echo "API: http://localhost:8000"
     echo "API Docs: http://localhost:8000/api/docs"
     echo "Admin Panel: http://localhost:8000/admin"
     echo "Grafana: http://localhost:3001 (admin/admin123)"
     echo "Prometheus: http://localhost:9090"
     echo "Kibana: http://localhost:5601"
+    echo
+    echo "=== PWA Features ==="
+    echo "• Install as app on mobile/desktop"
+    echo "• Offline support"
+    echo "• Push notifications"
+    echo "• Auto-updates"
     echo
     echo "=== Default Credentials ==="
     echo "Admin User: admin"
