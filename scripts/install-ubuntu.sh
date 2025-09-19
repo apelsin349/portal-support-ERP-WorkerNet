@@ -372,20 +372,28 @@ install_nodejs() {
 
 # Установка PostgreSQL
 install_postgresql() {
-    print_status "Устанавливаем PostgreSQL..."
-    sudo apt install -y postgresql postgresql-contrib postgresql-client
-    sudo systemctl start postgresql
-    sudo systemctl enable postgresql
-    print_success "PostgreSQL установлен ($(psql --version 2>/dev/null || echo unknown))"
+    if command -v psql >/dev/null 2>&1; then
+        print_status "PostgreSQL уже установлен ($(psql --version 2>/dev/null || echo unknown)) — пропускаем установку"
+    else
+        print_status "Устанавливаем PostgreSQL..."
+        sudo apt install -y postgresql postgresql-contrib postgresql-client
+    fi
+    sudo systemctl enable postgresql 2>/dev/null || true
+    sudo systemctl start postgresql 2>/dev/null || true
+    print_success "PostgreSQL готов ($(psql --version 2>/dev/null || echo unknown))"
 }
 
 # Установка Redis
 install_redis() {
-    print_status "Устанавливаем Redis..."
-    sudo apt install -y redis-server
-    sudo systemctl start redis-server
-    sudo systemctl enable redis-server
-    print_success "Redis установлен"
+    if command -v redis-server >/dev/null 2>&1; then
+        print_status "Redis уже установлен — пропускаем установку"
+    else
+        print_status "Устанавливаем Redis..."
+        sudo apt install -y redis-server
+    fi
+    sudo systemctl enable redis-server 2>/dev/null || true
+    sudo systemctl start redis-server 2>/dev/null || true
+    print_success "Redis готов"
 }
 
 # Установка Prometheus и Grafana (опционально)
@@ -420,8 +428,17 @@ install_monitoring_stack() {
     fi
 
     # Устанавливаем Prometheus из APT, а Grafana — либо из APT, либо из .deb (фолбэк)
-    sudo apt install -y prometheus || true
-    if [ "$APT_GRAFANA_OK" = true ]; then
+    # Prometheus: пропускаем, если бинарь/сервис есть
+    if command -v prometheus >/dev/null 2>&1 || systemctl list-unit-files | grep -q "^prometheus\.service"; then
+        print_status "Prometheus уже установлен — пропускаем установку"
+    else
+        sudo apt install -y prometheus || true
+    fi
+
+    # Grafana: если сервис уже есть — не переустанавливаем
+    if systemctl list-unit-files | grep -q "^grafana-server\.service"; then
+        print_status "Grafana уже установлена — пропускаем установку"
+    elif [ "$APT_GRAFANA_OK" = true ]; then
         sudo apt install -y grafana || true
     else
         print_warning "Установка Grafana из репозитория недоступна. Переходим на установку из .deb"
@@ -510,6 +527,15 @@ verify_monitoring_stack() {
 
 # Установка Docker
 install_docker() {
+    if command -v docker >/dev/null 2>&1; then
+        print_status "Docker уже установлен — пропускаем установку"
+        # Ensure docker service running and compose present
+        sudo systemctl enable --now docker || true
+        if ! docker compose version >/dev/null 2>&1; then
+            sudo apt install -y docker-compose-plugin || true
+        fi
+        return 0
+    fi
     print_status "Устанавливаем Docker..."
     
     # Remove old Docker packages
