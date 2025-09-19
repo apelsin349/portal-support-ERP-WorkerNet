@@ -1112,17 +1112,28 @@ run_migrations() {
     cd "$WORKERNET_ROOT/backend"
     source venv/bin/activate
     
-    # Создаем .env файл если его нет
+    # Создаем/обновляем backend/.env с корректными значениями
     if [ ! -f ".env" ]; then
         print_status "Создаем файл .env..."
         cat > .env << EOF
 SECRET_KEY=workernet-secret-key-2024-development-only
-DEBUG=True
+DEBUG=False
 ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+ALLOWED_HOSTS_EXTRA=${WORKERNET_ALLOWED_HOSTS_EXTRA:-}
 DATABASE_URL=postgresql://workernet:${WORKERNET_DB_PASS}@localhost:5432/workernet
 REDIS_URL=redis://:${WORKERNET_REDIS_PASS}@localhost:6379/0
 JWT_SECRET_KEY=workernet-jwt-secret-key-2024-development-only
 EOF
+    else
+        # Идемпотентно правим ключевые параметры
+        sed -i "s/^DEBUG=.*/DEBUG=False/" .env || true
+        grep -q "^ALLOWED_HOSTS=" .env || echo "ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0" >> .env
+        if grep -q "^ALLOWED_HOSTS_EXTRA=" .env; then
+            sed -i "s/^ALLOWED_HOSTS_EXTRA=.*/ALLOWED_HOSTS_EXTRA=${WORKERNET_ALLOWED_HOSTS_EXTRA:-}/" .env || true
+        else
+            echo "ALLOWED_HOSTS_EXTRA=${WORKERNET_ALLOWED_HOSTS_EXTRA:-}" >> .env
+        fi
+        grep -q "^DATABASE_URL=" .env || echo "DATABASE_URL=postgresql://workernet:${WORKERNET_DB_PASS}@localhost:5432/workernet" >> .env
     fi
     
     # Проверяем и исправляем базу данных перед миграциями
@@ -1514,9 +1525,15 @@ update_installation() {
         cd "$WORKERNET_ROOT/backend"
         source venv/bin/activate
         pip install -U pip setuptools wheel
-        pip install -r requirements.txt
-        if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
+        # Используем файлы зависимостей из корня репозитория
+        if [ -f "$WORKERNET_ROOT/requirements.txt" ]; then
+            pip install -r "$WORKERNET_ROOT/requirements.txt"
+        else
+            print_warning "requirements.txt не найден в корне: $WORKERNET_ROOT/requirements.txt"
+        fi
+        if [ -f "$WORKERNET_ROOT/requirements-dev.txt" ]; then
+            pip install -r "$WORKERNET_ROOT/requirements-dev.txt"
+        fi
         fi
         print_success "Зависимости Python обновлены"
     fi

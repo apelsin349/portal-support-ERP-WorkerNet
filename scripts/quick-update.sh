@@ -166,10 +166,10 @@ update_python_deps() {
     pip install -U pip setuptools wheel
 
     # Ищем requirements: сначала в backend/, затем в корне
-    REQ_PRIMARY="$PROJECT_DIR/backend/requirements.txt"
-    REQ_SECONDARY="$PROJECT_DIR/requirements.txt"
-    DEV_PRIMARY="$PROJECT_DIR/backend/requirements-dev.txt"
-    DEV_SECONDARY="$PROJECT_DIR/requirements-dev.txt"
+    REQ_PRIMARY="$PROJECT_DIR/requirements.txt"
+    REQ_SECONDARY="$PROJECT_DIR/backend/requirements.txt"
+    DEV_PRIMARY="$PROJECT_DIR/requirements-dev.txt"
+    DEV_SECONDARY="$PROJECT_DIR/backend/requirements-dev.txt"
 
     if [ -f "$REQ_PRIMARY" ]; then
         pip install -r "$REQ_PRIMARY"
@@ -219,6 +219,18 @@ run_migrations() {
             print_warning "Виртуальное окружение не найдено — пытаемся запустить системным Python"
         fi
         
+        # Гарантируем корректные переменные окружения в backend/.env
+        if [ -f ".env" ]; then
+            sed -i "s/^DEBUG=.*/DEBUG=False/" .env || true
+            grep -q "^ALLOWED_HOSTS=" .env || echo "ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0" >> .env
+            if grep -q "^ALLOWED_HOSTS_EXTRA=" .env; then
+                sed -i "s/^ALLOWED_HOSTS_EXTRA=.*/ALLOWED_HOSTS_EXTRA=${WORKERNET_ALLOWED_HOSTS_EXTRA:-}/" .env || true
+            else
+                echo "ALLOWED_HOSTS_EXTRA=${WORKERNET_ALLOWED_HOSTS_EXTRA:-}" >> .env
+            fi
+            grep -q "^DATABASE_URL=" .env || echo "DATABASE_URL=postgresql://workernet:workernet123@localhost:5432/workernet" >> .env
+        fi
+
         if command -v python >/dev/null 2>&1; then
             python manage.py migrate --fake-initial || { print_error "Ошибка выполнения миграций"; return 1; }
             python manage.py collectstatic --noinput || true

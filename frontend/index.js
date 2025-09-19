@@ -67,8 +67,9 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Frontend server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API endpoints: http://localhost:${PORT}/api`);
+  console.log(`🌐 External access: http://10.0.21.221:${PORT}`);
 });
