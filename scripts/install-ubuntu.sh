@@ -1265,7 +1265,7 @@ EOF
         cd "$WORKERNET_ROOT/backend"
         python3 -m venv venv
         source venv/bin/activate
-        pip install -r requirements.txt || true
+        pip install -r "$WORKERNET_ROOT/requirements.txt" || true
     fi
     
     # Reload systemd
