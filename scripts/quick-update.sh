@@ -346,46 +346,87 @@ update_python_deps() {
         fi
     fi
 
-    print_status "Обновляем зависимости Python..."
-
-    # Активируем окружение
-    # shellcheck disable=SC1090
-    source "$VENV_DIR/bin/activate"
-
-    pip install -U pip setuptools wheel
-
-    # Ищем requirements: сначала в backend/, затем в корне
+    # Проверяем, нужно ли обновлять зависимости Python
     REQ_PRIMARY="$PROJECT_DIR/requirements.txt"
     REQ_SECONDARY="$PROJECT_DIR/backend/requirements.txt"
-    DEV_PRIMARY="$PROJECT_DIR/requirements-dev.txt"
-    DEV_SECONDARY="$PROJECT_DIR/backend/requirements-dev.txt"
-
+    REQUIREMENTS_HASH_FILE="$VENV_DIR/.requirements_hash"
+    
+    NEED_UPDATE=false
+    
+    # Проверяем, изменились ли файлы requirements
     if [ -f "$REQ_PRIMARY" ]; then
-        pip install -r "$REQ_PRIMARY"
+        if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$REQ_PRIMARY" -nt "$REQUIREMENTS_HASH_FILE" ]; then
+            NEED_UPDATE=true
+        fi
     elif [ -f "$REQ_SECONDARY" ]; then
-        pip install -r "$REQ_SECONDARY"
+        if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$REQ_SECONDARY" -nt "$REQUIREMENTS_HASH_FILE" ]; then
+            NEED_UPDATE=true
+        fi
+    fi
+    
+    if [ "$NEED_UPDATE" = true ]; then
+        print_status "Обнаружены изменения в requirements.txt, обновляем зависимости Python..."
+        
+        # Активируем окружение
+        # shellcheck disable=SC1090
+        source "$VENV_DIR/bin/activate"
+
+        pip install -U pip setuptools wheel
+
+        # Ищем requirements: сначала в backend/, затем в корне
+        DEV_PRIMARY="$PROJECT_DIR/requirements-dev.txt"
+        DEV_SECONDARY="$PROJECT_DIR/backend/requirements-dev.txt"
+
+        if [ -f "$REQ_PRIMARY" ]; then
+            pip install -r "$REQ_PRIMARY"
+            # Сохраняем хеш файла
+            sha256sum "$REQ_PRIMARY" > "$REQUIREMENTS_HASH_FILE" 2>/dev/null || true
+        elif [ -f "$REQ_SECONDARY" ]; then
+            pip install -r "$REQ_SECONDARY"
+            # Сохраняем хеш файла
+            sha256sum "$REQ_SECONDARY" > "$REQUIREMENTS_HASH_FILE" 2>/dev/null || true
+        else
+            print_warning "requirements.txt не найден ни в backend/, ни в корне — пропускаем установку основных зависимостей"
+        fi
+
+        if [ -f "$DEV_PRIMARY" ]; then
+            pip install -r "$DEV_PRIMARY"
+        elif [ -f "$DEV_SECONDARY" ]; then
+            pip install -r "$DEV_SECONDARY"
+        fi
+
+        print_success "Зависимости Python обновлены"
     else
-        print_warning "requirements.txt не найден ни в backend/, ни в корне — пропускаем установку основных зависимостей"
+        print_status "Зависимости Python актуальны, пропускаем обновление"
     fi
-
-    if [ -f "$DEV_PRIMARY" ]; then
-        pip install -r "$DEV_PRIMARY"
-    elif [ -f "$DEV_SECONDARY" ]; then
-        pip install -r "$DEV_SECONDARY"
-    fi
-
-    print_success "Зависимости Python обновлены"
 }
 
 # Обновление зависимостей Node.js
 update_nodejs_deps() {
     if [ -d "$PROJECT_DIR/frontend" ]; then
-        print_status "Обновляем зависимости Node.js..."
-        
         cd "$PROJECT_DIR/frontend"
-        npm update
         
-        print_success "Зависимости Node.js обновлены"
+        # Проверяем, нужно ли обновлять зависимости Node.js
+        PACKAGE_JSON="$PROJECT_DIR/frontend/package.json"
+        PACKAGE_LOCK="$PROJECT_DIR/frontend/package-lock.json"
+        NODE_HASH_FILE="$PROJECT_DIR/frontend/.node_deps_hash"
+        
+        NEED_UPDATE=false
+        
+        # Проверяем, изменились ли файлы зависимостей
+        if [ ! -f "$NODE_HASH_FILE" ] || [ "$PACKAGE_JSON" -nt "$NODE_HASH_FILE" ] || [ "$PACKAGE_LOCK" -nt "$NODE_HASH_FILE" ]; then
+            NEED_UPDATE=true
+        fi
+        
+        if [ "$NEED_UPDATE" = true ]; then
+            print_status "Обнаружены изменения в package.json/package-lock.json, обновляем зависимости Node.js..."
+            npm update
+            # Сохраняем хеш файлов
+            sha256sum "$PACKAGE_JSON" "$PACKAGE_LOCK" > "$NODE_HASH_FILE" 2>/dev/null || true
+            print_success "Зависимости Node.js обновлены"
+        else
+            print_status "Зависимости Node.js актуальны, пропускаем обновление"
+        fi
     else
         print_warning "Директория frontend не найдена"
     fi
