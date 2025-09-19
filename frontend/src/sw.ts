@@ -145,11 +145,11 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // Обработка фоновой синхронизации
-self.addEventListener('sync', (event: ExtendableEvent) => {
-  if ((event as any).tag === 'background-sync') {
+self.addEventListener('sync', (event: any) => {
+  if (event.tag === 'background-sync') {
     event.waitUntil(
       // Здесь можно добавить логику синхронизации данных
-      console.log('Background sync triggered')
+      Promise.resolve(console.log('Background sync triggered'))
     );
   }
 });
