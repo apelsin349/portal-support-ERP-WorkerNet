@@ -32,7 +32,7 @@ cp env.example .env
 docker compose up -d
 
 # Или установка на Ubuntu
-./scripts/install-ubuntu.sh
+./scripts/universal-install-update.sh
 ```
 
 ### Если получаете «Permission denied» при запуске скриптов

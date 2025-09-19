@@ -21,11 +21,11 @@ docker compose up -d
 
 ```bash
 # Установить переменную и запустить скрипт
-WORKERNET_DOMAIN_OR_IP=192.168.1.100 ./scripts/install-ubuntu.sh
+WORKERNET_DOMAIN_OR_IP=192.168.1.100 ./scripts/universal-install-update.sh
 
 # Или экспортировать переменную
 export WORKERNET_DOMAIN_OR_IP=192.168.1.100
-./scripts/install-ubuntu.sh
+./scripts/universal-install-update.sh
 ```
 
 ### 3. Ручная настройка

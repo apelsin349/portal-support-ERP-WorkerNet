@@ -8,10 +8,10 @@
 
 | Старый скрипт | Функциональность | Статус |
 |---------------|------------------|--------|
-| `install-ubuntu.sh` | Полная установка с нуля | ✅ Заменен |
-| `quick-update.sh` | Быстрое обновление | ✅ Заменен |
-| `setup.sh` | Настройка через Docker | ✅ Заменен |
-| `force-update-deps.sh` | Принудительное обновление зависимостей | ✅ Заменен |
+| `install-ubuntu.sh` | Полная установка с нуля | ✅ Заменен на `universal-install-update.sh` |
+| `quick-update.sh` | Быстрое обновление | ✅ Заменен на `universal-install-update.sh` |
+| `setup.sh` | Настройка через Docker | ✅ Заменен на `universal-install-update.sh` |
+| `force-update-deps.sh` | Принудительное обновление зависимостей | ✅ Заменен на `universal-install-update.sh` |
 
 ## Миграция
 
@@ -19,7 +19,7 @@
 
 **Старый способ:**
 ```bash
-./scripts/install-ubuntu.sh
+./scripts/universal-install-update.sh
 ```
 
 **Новый способ:**
@@ -126,7 +126,7 @@ curl -f http://localhost:3000
 
 ```bash
 # ВНИМАНИЕ: Удаляйте только после успешной миграции!
-rm scripts/install-ubuntu.sh
+rm scripts/install-ubuntu.sh  # Удалить после успешной миграции
 rm scripts/quick-update.sh
 rm scripts/setup.sh
 rm scripts/force-update-deps.sh
