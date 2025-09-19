@@ -397,25 +397,44 @@ update_python_deps() {
     REQUIREMENTS_HASH_FILE="$VENV_DIR/.requirements_hash"
     
     NEED_UPDATE=false
+    FORCE_UPDATE=false
     
-    # Проверяем, изменились ли файлы requirements
+    # Проверяем флаг принудительного обновления
+    if [ "$1" = "--force" ] || [ "$FORCE_UPDATE_DEPS" = "true" ]; then
+        FORCE_UPDATE=true
+        print_status "Принудительное обновление зависимостей Python..."
+    fi
+    
+    # Проверяем, изменились ли файлы requirements (используем хеш содержимого)
     if [ -f "$REQ_PRIMARY" ]; then
-        if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$REQ_PRIMARY" -nt "$REQUIREMENTS_HASH_FILE" ]; then
+        CURRENT_HASH=$(sha256sum "$REQ_PRIMARY" 2>/dev/null | cut -d' ' -f1)
+        if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$CURRENT_HASH" != "$(cat "$REQUIREMENTS_HASH_FILE" 2>/dev/null | cut -d' ' -f1)" ]; then
             NEED_UPDATE=true
         fi
     elif [ -f "$REQ_SECONDARY" ]; then
-        if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$REQ_SECONDARY" -nt "$REQUIREMENTS_HASH_FILE" ]; then
+        CURRENT_HASH=$(sha256sum "$REQ_SECONDARY" 2>/dev/null | cut -d' ' -f1)
+        if [ ! -f "$REQUIREMENTS_HASH_FILE" ] || [ "$CURRENT_HASH" != "$(cat "$REQUIREMENTS_HASH_FILE" 2>/dev/null | cut -d' ' -f1)" ]; then
             NEED_UPDATE=true
         fi
     fi
     
-    if [ "$NEED_UPDATE" = true ]; then
-        print_status "Обнаружены изменения в requirements.txt, обновляем зависимости Python..."
+    if [ "$NEED_UPDATE" = true ] || [ "$FORCE_UPDATE" = true ]; then
+        if [ "$FORCE_UPDATE" = true ]; then
+            print_status "Принудительно обновляем зависимости Python..."
+        else
+            print_status "Обнаружены изменения в requirements.txt, обновляем зависимости Python..."
+        fi
         
         # Активируем окружение
         # shellcheck disable=SC1090
         source "$VENV_DIR/bin/activate"
 
+        # Очищаем кэш pip для свежей установки
+        print_status "Очищаем кэш pip..."
+        pip cache purge 2>/dev/null || true
+
+        # Обновляем pip, setuptools и wheel
+        print_status "Обновляем pip, setuptools и wheel..."
         pip install -U pip setuptools wheel
 
         # Ищем requirements: сначала в backend/, затем в корне
@@ -423,11 +442,13 @@ update_python_deps() {
         DEV_SECONDARY="$PROJECT_DIR/backend/requirements-dev.txt"
 
         if [ -f "$REQ_PRIMARY" ]; then
-            pip install -r "$REQ_PRIMARY"
+            print_status "Устанавливаем зависимости из $REQ_PRIMARY..."
+            pip install -r "$REQ_PRIMARY" --upgrade
             # Сохраняем хеш файла
             sha256sum "$REQ_PRIMARY" > "$REQUIREMENTS_HASH_FILE" 2>/dev/null || true
         elif [ -f "$REQ_SECONDARY" ]; then
-            pip install -r "$REQ_SECONDARY"
+            print_status "Устанавливаем зависимости из $REQ_SECONDARY..."
+            pip install -r "$REQ_SECONDARY" --upgrade
             # Сохраняем хеш файла
             sha256sum "$REQ_SECONDARY" > "$REQUIREMENTS_HASH_FILE" 2>/dev/null || true
         else
@@ -435,10 +456,16 @@ update_python_deps() {
         fi
 
         if [ -f "$DEV_PRIMARY" ]; then
-            pip install -r "$DEV_PRIMARY"
+            print_status "Устанавливаем dev зависимости из $DEV_PRIMARY..."
+            pip install -r "$DEV_PRIMARY" --upgrade
         elif [ -f "$DEV_SECONDARY" ]; then
-            pip install -r "$DEV_SECONDARY"
+            print_status "Устанавливаем dev зависимости из $DEV_SECONDARY..."
+            pip install -r "$DEV_SECONDARY" --upgrade
         fi
+
+        # Проверяем устаревшие пакеты
+        print_status "Проверяем устаревшие пакеты..."
+        pip list --outdated 2>/dev/null | head -10 || true
 
         print_success "Зависимости Python обновлены"
     else
@@ -821,6 +848,7 @@ case "${1:-}" in
         echo "  --help, -h     Показать эту справку"
         echo "  --check        Только проверить наличие обновлений"
         echo "  --force        Принудительное обновление без проверки"
+        echo "  --force-deps   Принудительное обновление зависимостей"
         echo "  --branch BRANCH Указать ветку для обновления"
         echo "  --create-branch Создать локальную ветку из удаленной"
         echo "  --debug        Показать диагностическую информацию"
@@ -871,6 +899,19 @@ case "${1:-}" in
         stop_services
         update_code
         update_python_deps
+        update_nodejs_deps
+        build_frontend
+        run_migrations
+        start_services
+        show_status
+        ;;
+    --force-deps)
+        print_warning "Принудительное обновление зависимостей"
+        find_project_directory
+        FORCE_UPDATE_DEPS=true
+        stop_services
+        update_code
+        update_python_deps --force
         update_nodejs_deps
         build_frontend
         run_migrations
