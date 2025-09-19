@@ -1495,14 +1495,27 @@ main() {
     # Выполняем установку в зависимости от выбранного режима
     if [ "$INSTALLATION_MODE" = "update" ]; then
         # Режим обновления
-        # Раннее обновление проекта, если уже клонирован
-        early_update_repository
         
-        # Спрашиваем о смене репозитория в режиме обновления
+        # Сначала определяем репозиторий для обновления
         if [ -z "$REPO_URL" ]; then
+            # Находим существующий репозиторий для показа текущего URL
+            EXISTING_REPO=""
+            CANDIDATES=(
+                "$(pwd)"
+                "$HOME/workernet-portal/portal-support-ERP-WorkerNet"
+                "$HOME/portal-support-ERP-WorkerNet"
+            )
+            
+            for dir in "${CANDIDATES[@]}"; do
+                if [ -d "$dir/.git" ] && [ -f "$dir/scripts/universal-install-update.sh" ]; then
+                    EXISTING_REPO="$(cd "$dir" && git remote get-url origin 2>/dev/null || echo 'не определен')"
+                    break
+                fi
+            done
+            
             echo
             print_status "Обновление существующей установки"
-            echo "Текущий репозиторий: $(cd "$WORKERNET_ROOT" && git remote get-url origin 2>/dev/null || echo 'не определен')"
+            echo "Текущий репозиторий: $EXISTING_REPO"
             echo
             echo "Выберите действие:"
             echo "1) Обновить из текущего репозитория"
@@ -1516,7 +1529,7 @@ main() {
                 case "$choice" in
                     1|3|"")
                         # Используем текущий репозиторий
-                        REPO_URL="$(cd "$WORKERNET_ROOT" && git remote get-url origin 2>/dev/null || echo '')"
+                        REPO_URL="$EXISTING_REPO"
                         print_status "Используем текущий репозиторий: $REPO_URL"
                         break
                         ;;
@@ -1534,6 +1547,8 @@ main() {
             print_status "Используем репозиторий из переменной окружения: $REPO_URL"
         fi
         
+        # Теперь выполняем раннее обновление с выбранным репозиторием
+        early_update_repository
         update_installation
         
         # Показываем информацию об обновлении
