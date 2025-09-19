@@ -59,6 +59,10 @@ class User(AbstractUser):
     is_verified = models.BooleanField(default=False, verbose_name=_("Верифицирован"))
     last_login_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("IP последнего входа"))
     
+    # JWT Reset tokens
+    reset_token = models.CharField(max_length=32, null=True, blank=True, verbose_name=_("Токен сброса"))
+    reset_token_expires = models.DateTimeField(null=True, blank=True, verbose_name=_("Истечение токена"))
+    
     class Meta:
         verbose_name = _("Пользователь")
         verbose_name_plural = _("Пользователи")
