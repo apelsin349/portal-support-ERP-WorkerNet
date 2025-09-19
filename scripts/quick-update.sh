@@ -407,13 +407,19 @@ build_frontend() {
         # Собираем фронтенд для production
         print_status "Собираем фронтенд для production..."
         
-        # Исправляем права доступа к webpack
-        if [ -f "node_modules/.bin/webpack" ]; then
-            chmod +x node_modules/.bin/webpack 2>/dev/null || true
+        # Исправляем права доступа к webpack и другим инструментам
+        if [ -d "node_modules/.bin" ]; then
+            print_status "Исправляем права доступа к инструментам сборки..."
+            find node_modules/.bin -type f -name "*" -exec chmod +x {} \; 2>/dev/null || true
         fi
         
+        # Пробуем разные способы сборки
         if npm run build; then
             print_success "Фронтенд собран успешно"
+        elif npx webpack --mode production; then
+            print_success "Фронтенд собран через npx"
+        elif node_modules/.bin/webpack --mode production; then
+            print_success "Фронтенд собран через прямой вызов"
         else
             print_warning "Ошибка сборки фронтенда — продолжаем без сборки"
         fi
@@ -473,8 +479,10 @@ EOF
             
             # Проверяем конфликты миграций и исправляем их
             print_status "Проверяем конфликты миграций..."
-            if python manage.py showmigrations app 2>/dev/null | grep -q "\[ \] 0008"; then
-                print_status "Обнаружен конфликт миграций, исправляем..."
+            if python manage.py showmigrations app 2>&1 | grep -q "Conflicting migrations detected"; then
+                print_status "Обнаружен конфликт миграций, создаем merge миграцию..."
+                # Создаем merge миграцию
+                python manage.py makemigrations --merge app --empty 2>/dev/null || true
                 # Помечаем все проблемные миграции как выполненные
                 python manage.py migrate app 0008 --fake 2>/dev/null || true
                 python manage.py migrate app 0009 --fake 2>/dev/null || true
