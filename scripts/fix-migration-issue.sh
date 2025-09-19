@@ -35,14 +35,10 @@ EOF
 
 echo "[ИНФО] Шаг 2: Очищаем состояние миграций в базе данных..."
 
-# Удаляем записи о проблемных миграциях из django_migrations
+# Удаляем все записи миграций приложения app, кроме базовой
 python manage.py dbshell << 'EOF'
 DELETE FROM django_migrations 
-WHERE app = 'app' AND name IN (
-    '0008_agentrating_incident_incidentattachment_and_more',
-    '0009_auto_20241201_1200',
-    '0010_fix_constraint_issue'
-);
+WHERE app = 'app' AND name != '0001_initial';
 EOF
 
 echo "[ИНФО] Шаг 3: Создаем отсутствующие таблицы вручную..."
@@ -165,33 +161,22 @@ CREATE TABLE IF NOT EXISTS app_incident_tags (
 
 EOF
 
-echo "[ИНФО] Шаг 4: Помечаем все миграции как выполненные..."
+echo "[ИНФО] Шаг 4: Сбрасываем состояние миграций..."
 
-# Помечаем все миграции как выполненные
+# Сбрасываем состояние миграций
 python manage.py migrate app 0001 --fake
-python manage.py migrate app 0002 --fake
-python manage.py migrate app 0003_abtest_abtestevent_abtestmetric_abtestparticipant_and_more --fake
-python manage.py migrate app 0003_safe_models --fake
-python manage.py migrate app 0004_merge_0003_conflicts --fake
-python manage.py migrate app 0005_agentrating_automationaction_automationcondition_and_more --fake
-python manage.py migrate app 0006_fix_foreign_keys --fake
-python manage.py migrate app 0007_add_user_reset_tokens --fake
 
-# Создаем запись о "выполненной" миграции 0008
-python manage.py dbshell << 'EOF'
-INSERT INTO django_migrations (app, name, applied) 
-VALUES ('app', '0008_agentrating_incident_incidentattachment_and_more', NOW())
-ON CONFLICT (app, name) DO NOTHING;
-EOF
+echo "[ИНФО] Шаг 5: Создаем новые миграции..."
 
-python manage.py migrate app 0010_fix_constraint_issue --fake
+# Создаем новые миграции
+python manage.py makemigrations app
 
-echo "[ИНФО] Шаг 5: Проверяем состояние миграций..."
+echo "[ИНФО] Шаг 6: Проверяем состояние миграций..."
 
 # Проверяем состояние миграций
 python manage.py showmigrations app
 
-echo "[ИНФО] Шаг 6: Выполняем финальную миграцию..."
+echo "[ИНФО] Шаг 7: Выполняем финальную миграцию..."
 
 # Выполняем миграции
 python manage.py migrate

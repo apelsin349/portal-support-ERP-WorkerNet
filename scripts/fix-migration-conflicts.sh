@@ -35,8 +35,9 @@ EOF
 # Очищаем проблемные записи миграций
 echo "[ИНФО] Очищаем проблемные записи миграций..."
 python manage.py dbshell << 'EOF' 2>/dev/null || true
+-- Удаляем все записи миграций приложения app, кроме базовой
 DELETE FROM django_migrations 
-WHERE app = 'app' AND name LIKE '%0008%' OR name LIKE '%0009%';
+WHERE app = 'app' AND name != '0001_initial';
 EOF
 
 # Создаем отсутствующие таблицы
@@ -156,18 +157,15 @@ CREATE TABLE IF NOT EXISTS app_incident_tags (
     UNIQUE (incident_id, tag_id)
 );
 
--- Создаем запись о выполненной миграции 0008
-INSERT INTO django_migrations (app, name, applied) 
-VALUES ('app', '0008_agentrating_incident_incidentattachment_and_more', NOW())
-ON CONFLICT (app, name) DO NOTHING;
 EOF
 
-# Помечаем все проблемные миграции как выполненные
-echo "[ИНФО] Помечаем проблемные миграции как выполненные..."
-python manage.py migrate app 0008 --fake 2>/dev/null || true
-python manage.py migrate app 0009 --fake 2>/dev/null || true
-python manage.py migrate app 0010 --fake 2>/dev/null || true
-python manage.py migrate app 0011 --fake 2>/dev/null || true
+# Сбрасываем состояние миграций
+echo "[ИНФО] Сбрасываем состояние миграций..."
+python manage.py migrate app 0001 --fake
+
+# Создаем новые миграции
+echo "[ИНФО] Создаем новые миграции..."
+python manage.py makemigrations app
 
 # Выполняем миграции
 echo "[ИНФО] Выполняем миграции..."

@@ -550,8 +550,14 @@ run_migrations() {
         fi
 
         if command -v python >/dev/null 2>&1; then
-            # Используем экстренный скрипт исправления миграций
-            if [ -f "../scripts/emergency-migration-fix.sh" ]; then
+            # Используем быстрый скрипт исправления миграций
+            if [ -f "../scripts/quick-migration-fix.sh" ]; then
+                print_status "Используем быстрый скрипт исправления миграций..."
+                bash ../scripts/quick-migration-fix.sh
+            elif [ -f "../scripts/ubuntu-migration-fix.sh" ]; then
+                print_status "Используем Ubuntu скрипт исправления миграций..."
+                bash ../scripts/ubuntu-migration-fix.sh
+            elif [ -f "../scripts/emergency-migration-fix.sh" ]; then
                 print_status "Используем экстренный скрипт исправления миграций..."
                 bash ../scripts/emergency-migration-fix.sh
             else
@@ -694,9 +700,11 @@ VALUES ('app', '0008_agentrating_incident_incidentattachment_and_more', NOW())
 ON CONFLICT (app, name) DO NOTHING;
 EOF
                 
-                # Помечаем миграции как выполненные
-                python manage.py migrate app 0008 --fake 2>/dev/null || true
-                python manage.py migrate app 0010 --fake 2>/dev/null || true
+                # Очищаем проблемные записи миграций и создаем новые
+                python manage.py dbshell -c "DELETE FROM django_migrations WHERE app = 'app' AND name != '0001_initial';" 2>/dev/null || true
+                python manage.py migrate app 0001 --fake 2>/dev/null || true
+                python manage.py makemigrations app 2>/dev/null || true
+                python manage.py migrate 2>/dev/null || true
             fi
             
             # Выполняем финальные миграции
