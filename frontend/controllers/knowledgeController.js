@@ -23,7 +23,7 @@ router.get('/articles', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get articles',
+      error: 'Не удалось получить статьи',
       message: error.response?.data?.message || error.message
     });
   }
@@ -38,7 +38,7 @@ router.post('/articles', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to create article',
+      error: 'Не удалось создать статью',
       message: error.response?.data?.message || error.message
     });
   }
@@ -53,7 +53,7 @@ router.get('/articles/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get article',
+      error: 'Не удалось получить статью',
       message: error.response?.data?.message || error.message
     });
   }
@@ -68,7 +68,7 @@ router.put('/articles/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to update article',
+      error: 'Не удалось обновить статью',
       message: error.response?.data?.message || error.message
     });
   }
@@ -83,7 +83,7 @@ router.delete('/articles/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to delete article',
+      error: 'Не удалось удалить статью',
       message: error.response?.data?.message || error.message
     });
   }
@@ -98,7 +98,7 @@ router.post('/articles/:id/rate', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to rate article',
+      error: 'Не удалось оценить статью',
       message: error.response?.data?.message || error.message
     });
   }
@@ -113,7 +113,7 @@ router.post('/articles/:id/helpful', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to mark article as helpful',
+      error: 'Не удалось отметить статью как полезную',
       message: error.response?.data?.message || error.message
     });
   }
@@ -128,7 +128,7 @@ router.get('/articles/featured', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get featured articles',
+      error: 'Не удалось получить рекомендуемые статьи',
       message: error.response?.data?.message || error.message
     });
   }
@@ -143,7 +143,7 @@ router.get('/articles/popular', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get popular articles',
+      error: 'Не удалось получить популярные статьи',
       message: error.response?.data?.message || error.message
     });
   }
@@ -158,7 +158,7 @@ router.get('/articles/recent', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get recent articles',
+      error: 'Не удалось получить последние статьи',
       message: error.response?.data?.message || error.message
     });
   }
@@ -173,7 +173,7 @@ router.post('/articles/search', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to search articles',
+      error: 'Не удалось выполнить поиск статей',
       message: error.response?.data?.message || error.message
     });
   }
@@ -191,7 +191,7 @@ router.get('/categories', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get categories',
+      error: 'Не удалось получить категории',
       message: error.response?.data?.message || error.message
     });
   }
@@ -206,7 +206,7 @@ router.post('/categories', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to create category',
+      error: 'Не удалось создать категорию',
       message: error.response?.data?.message || error.message
     });
   }
@@ -221,7 +221,7 @@ router.get('/categories/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get category',
+      error: 'Не удалось получить категорию',
       message: error.response?.data?.message || error.message
     });
   }
@@ -236,7 +236,7 @@ router.put('/categories/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to update category',
+      error: 'Не удалось обновить категорию',
       message: error.response?.data?.message || error.message
     });
   }
@@ -251,7 +251,7 @@ router.delete('/categories/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to delete category',
+      error: 'Не удалось удалить категорию',
       message: error.response?.data?.message || error.message
     });
   }
@@ -266,7 +266,7 @@ router.get('/categories/tree', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get category tree',
+      error: 'Не удалось получить дерево категорий',
       message: error.response?.data?.message || error.message
     });
   }
@@ -282,7 +282,7 @@ router.get('/categories/:id/articles', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get articles in category',
+      error: 'Не удалось получить статьи в категории',
       message: error.response?.data?.message || error.message
     });
   }
@@ -299,7 +299,7 @@ router.get('/stats', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get knowledge base statistics',
+      error: 'Не удалось получить статистику базы знаний',
       message: error.response?.data?.message || error.message
     });
   }

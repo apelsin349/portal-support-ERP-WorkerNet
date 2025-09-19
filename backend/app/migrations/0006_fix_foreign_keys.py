@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             sql="""
-                -- Add missing foreign key constraints for Knowledge base
+                -- Добавление недостающих внешних ключей для базы знаний
                 ALTER TABLE knowledge_categories 
                 ADD CONSTRAINT fk_knowledge_categories_parent 
                 FOREIGN KEY (parent_id) REFERENCES knowledge_categories(id) ON DELETE CASCADE;
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                 ADD CONSTRAINT fk_knowledgearticle_tags_tag 
                 FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE;
 
-                -- Add missing foreign key constraints for Automation
+                -- Добавление недостающих внешних ключей для автоматизации
                 ALTER TABLE automation_rules 
                 ADD CONSTRAINT fk_automation_rules_tenant 
                 FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
@@ -99,7 +99,7 @@ class Migration(migrations.Migration):
                 ADD CONSTRAINT fk_automation_schedules_rule 
                 FOREIGN KEY (rule_id) REFERENCES automation_rules(id) ON DELETE CASCADE;
 
-                -- Add indexes for better performance
+                -- Добавление индексов для улучшения производительности
                 CREATE INDEX IF NOT EXISTS idx_knowledge_categories_tenant ON knowledge_categories(tenant_id);
                 CREATE INDEX IF NOT EXISTS idx_knowledge_categories_parent ON knowledge_categories(parent_id);
                 CREATE INDEX IF NOT EXISTS idx_knowledge_articles_category ON knowledge_articles(category_id);
@@ -113,7 +113,7 @@ class Migration(migrations.Migration):
                 CREATE INDEX IF NOT EXISTS idx_automation_executions_ticket ON automation_executions(ticket_id);
             """,
             reverse_sql="""
-                -- Remove indexes
+                -- Удаление индексов
                 DROP INDEX IF EXISTS idx_automation_executions_ticket;
                 DROP INDEX IF EXISTS idx_automation_executions_rule;
                 DROP INDEX IF EXISTS idx_automation_rules_active;
@@ -126,7 +126,7 @@ class Migration(migrations.Migration):
                 DROP INDEX IF EXISTS idx_knowledge_categories_parent;
                 DROP INDEX IF EXISTS idx_knowledge_categories_tenant;
 
-                -- Remove foreign key constraints
+                -- Удаление внешних ключей
                 ALTER TABLE automation_schedules DROP CONSTRAINT IF EXISTS fk_automation_schedules_rule;
                 ALTER TABLE automation_templates DROP CONSTRAINT IF EXISTS fk_automation_templates_created_by;
                 ALTER TABLE automation_actions DROP CONSTRAINT IF EXISTS fk_automation_actions_rule;

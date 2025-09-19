@@ -182,7 +182,7 @@ class Migration(migrations.Migration):
                     UNIQUE (ab_test_id, name)
                 );
 
-                -- M2M feature_flags.target_tenants
+                -- Связь многие-ко-многим для целевых арендаторов флагов функций
                 CREATE TABLE IF NOT EXISTS app_featureflag_target_tenants (
                     id BIGSERIAL PRIMARY KEY,
                     featureflag_id BIGINT NOT NULL,
@@ -190,7 +190,7 @@ class Migration(migrations.Migration):
                     UNIQUE (featureflag_id, tenant_id)
                 );
 
-                -- M2M ab_tests.target_tenants
+                -- Связь многие-ко-многим для целевых арендаторов A/B тестов
                 CREATE TABLE IF NOT EXISTS app_abtest_target_tenants (
                     id BIGSERIAL PRIMARY KEY,
                     abtest_id BIGINT NOT NULL,
@@ -229,8 +229,8 @@ class Migration(migrations.Migration):
                         ("target_tenants", models.ManyToManyField(blank=True, related_name="feature_flags", to="app.tenant", verbose_name="Целевые арендаторы")),
                     ],
                     options={
-                        "verbose_name": "Feature Flag",
-                        "verbose_name_plural": "Feature Flags",
+                        "verbose_name": "Флаг функции",
+                        "verbose_name_plural": "Флаги функций",
                         "db_table": "feature_flags",
                     },
                 ),
@@ -304,7 +304,7 @@ class Migration(migrations.Migration):
                         ("properties", models.JSONField(default=dict, verbose_name="Свойства")),
                         ("timestamp", models.DateTimeField(auto_now_add=True, verbose_name="Время")),
                         ("ip_address", models.GenericIPAddressField(blank=True, null=True, verbose_name="IP адрес")),
-                        ("user_agent", models.TextField(blank=True, verbose_name="User Agent")),
+                        ("user_agent", models.TextField(blank=True, verbose_name="Пользовательский агент")),
                         ("participant", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="events", to="app.abtestparticipant", verbose_name="Участник")),
                     ],
                     options={

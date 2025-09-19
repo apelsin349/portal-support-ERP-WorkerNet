@@ -41,8 +41,8 @@ class FeatureFlag(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Обновлено"))
     
     class Meta:
-        verbose_name = _("Feature Flag")
-        verbose_name_plural = _("Feature Flags")
+        verbose_name = _("Флаг функции")
+        verbose_name_plural = _("Флаги функций")
         db_table = 'feature_flags'
     
     def __str__(self):
@@ -215,7 +215,7 @@ class ABTestEvent(models.Model):
     # Метаданные
     timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("Время"))
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("IP адрес"))
-    user_agent = models.TextField(blank=True, verbose_name=_("User Agent"))
+    user_agent = models.TextField(blank=True, verbose_name=_("Пользовательский агент"))
     
     class Meta:
         verbose_name = _("Событие A/B Теста")

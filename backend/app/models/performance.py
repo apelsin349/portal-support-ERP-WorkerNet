@@ -35,7 +35,7 @@ class PerformanceMetric(models.Model):
     
     # Контекст
     service = models.CharField(max_length=100, blank=True, verbose_name=_("Сервис"))
-    endpoint = models.CharField(max_length=200, blank=True, verbose_name=_("Endpoint"))
+    endpoint = models.CharField(max_length=200, blank=True, verbose_name=_("Эндпоинт"))
     method = models.CharField(max_length=10, blank=True, verbose_name=_("HTTP метод"))
     
     # Метаданные

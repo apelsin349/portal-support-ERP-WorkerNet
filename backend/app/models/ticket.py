@@ -234,7 +234,7 @@ class TicketSLA(models.Model):
         Ticket,
         on_delete=models.CASCADE,
         related_name='sla_tracking',
-        verbose_name=_("Ticket")
+        verbose_name=_("Тикет")
     )
     sla = models.ForeignKey(
         SLA,

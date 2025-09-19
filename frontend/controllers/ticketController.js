@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get tickets',
+      error: 'Не удалось получить тикеты',
       message: error.response?.data?.message || error.message
     });
   }
@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to create ticket',
+      error: 'Не удалось создать тикет',
       message: error.response?.data?.message || error.message
     });
   }
@@ -51,7 +51,7 @@ router.get('/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get ticket',
+      error: 'Не удалось получить тикет',
       message: error.response?.data?.message || error.message
     });
   }
@@ -66,7 +66,7 @@ router.put('/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to update ticket',
+      error: 'Не удалось обновить тикет',
       message: error.response?.data?.message || error.message
     });
   }
@@ -81,7 +81,7 @@ router.delete('/:id', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to delete ticket',
+      error: 'Не удалось удалить тикет',
       message: error.response?.data?.message || error.message
     });
   }
@@ -96,7 +96,7 @@ router.post('/:id/assign', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to assign ticket',
+      error: 'Не удалось назначить тикет',
       message: error.response?.data?.message || error.message
     });
   }
@@ -111,7 +111,7 @@ router.post('/:id/comment', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to add comment',
+      error: 'Не удалось добавить комментарий',
       message: error.response?.data?.message || error.message
     });
   }
@@ -126,7 +126,7 @@ router.post('/:id/attachment', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to add attachment',
+      error: 'Не удалось добавить вложение',
       message: error.response?.data?.message || error.message
     });
   }
@@ -141,7 +141,7 @@ router.get('/stats/overview', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get ticket statistics',
+      error: 'Не удалось получить статистику тикетов',
       message: error.response?.data?.message || error.message
     });
   }
@@ -156,7 +156,7 @@ router.get('/my/tickets', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get my tickets',
+      error: 'Не удалось получить мои тикеты',
       message: error.response?.data?.message || error.message
     });
   }
@@ -171,7 +171,7 @@ router.get('/urgent/tickets', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get urgent tickets',
+      error: 'Не удалось получить срочные тикеты',
       message: error.response?.data?.message || error.message
     });
   }
@@ -186,7 +186,7 @@ router.post('/search', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to search tickets',
+      error: 'Не удалось выполнить поиск тикетов',
       message: error.response?.data?.message || error.message
     });
   }

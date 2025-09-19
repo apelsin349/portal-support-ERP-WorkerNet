@@ -12,7 +12,7 @@ router.post('/register', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Registration failed',
+      error: 'Ошибка регистрации',
       message: error.response?.data?.message || error.message
     });
   }
@@ -25,7 +25,7 @@ router.post('/login', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Login failed',
+      error: 'Ошибка входа',
       message: error.response?.data?.message || error.message
     });
   }
@@ -38,7 +38,7 @@ router.post('/logout', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Logout failed',
+      error: 'Ошибка выхода',
       message: error.response?.data?.message || error.message
     });
   }
@@ -54,7 +54,7 @@ router.get('/profile', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get profile',
+      error: 'Не удалось получить профиль',
       message: error.response?.data?.message || error.message
     });
   }
@@ -70,7 +70,7 @@ router.put('/profile', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to update profile',
+      error: 'Не удалось обновить профиль',
       message: error.response?.data?.message || error.message
     });
   }
@@ -86,7 +86,7 @@ router.post('/change-password', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to change password',
+      error: 'Не удалось изменить пароль',
       message: error.response?.data?.message || error.message
     });
   }
@@ -99,7 +99,7 @@ router.post('/reset-password', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to reset password',
+      error: 'Не удалось сбросить пароль',
       message: error.response?.data?.message || error.message
     });
   }
@@ -112,7 +112,7 @@ router.post('/verify-email', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to verify email',
+      error: 'Не удалось подтвердить email',
       message: error.response?.data?.message || error.message
     });
   }
@@ -128,7 +128,7 @@ router.get('/tenants', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get tenants',
+      error: 'Не удалось получить арендаторов',
       message: error.response?.data?.message || error.message
     });
   }
@@ -144,7 +144,7 @@ router.get('/users', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to get users',
+      error: 'Не удалось получить пользователей',
       message: error.response?.data?.message || error.message
     });
   }
@@ -157,7 +157,7 @@ router.post('/refresh-token', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     res.status(error.response?.status || 500).json({
-      error: 'Failed to refresh token',
+      error: 'Не удалось обновить токен',
       message: error.response?.data?.message || error.message
     });
   }

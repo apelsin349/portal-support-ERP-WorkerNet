@@ -29,9 +29,9 @@ app.use('/api', require('./routes/api'));
 // Main routes
 app.get('/', (req, res) => {
   res.json({
-    message: 'WorkerNet Portal Frontend',
+    message: 'Фронтенд портала WorkerNet',
     version: '1.0.0',
-    status: 'running',
+    status: 'работает',
     endpoints: {
       health: '/health',
       api: '/api',
@@ -42,7 +42,7 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json({
-    status: 'healthy',
+    status: 'работает',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage()
@@ -53,23 +53,23 @@ app.get('/health', (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    error: 'Произошла ошибка!',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Внутренняя ошибка сервера'
   });
 });
 
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Not Found',
-    message: `Route ${req.method} ${req.path} not found`
+    error: 'Не найдено',
+    message: `Маршрут ${req.method} ${req.path} не найден`
   });
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Frontend server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API endpoints: http://localhost:${PORT}/api`);
-  console.log(`🌐 External access: http://10.0.21.221:${PORT}`);
+  console.log(`🚀 Фронтенд сервер запущен на порту ${PORT}`);
+  console.log(`📊 Проверка состояния: http://localhost:${PORT}/health`);
+  console.log(`🔗 API эндпоинты: http://localhost:${PORT}/api`);
+  console.log(`🌐 Внешний доступ: http://10.0.21.221:${PORT}`);
 });
