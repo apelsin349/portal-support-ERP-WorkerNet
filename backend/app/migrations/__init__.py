@@ -1,1 +1,1 @@
-# Migrations for app
+# Миграции Django
