@@ -490,7 +490,15 @@ verify_monitoring_stack() {
     # Проверка портов
     if command -v curl >/dev/null 2>&1; then
         curl -fsS http://${SERVER_DOMAIN_OR_IP}:9090 >/dev/null 2>&1 && print_success "Prometheus UI доступен: http://${SERVER_DOMAIN_OR_IP}:9090" || { print_warning "Prometheus UI недоступен: http://${SERVER_DOMAIN_OR_IP}:9090"; ok=false; }
-        curl -fsS http://${SERVER_DOMAIN_OR_IP}:3001 >/dev/null 2>&1 && print_success "Grafana UI доступна: http://${SERVER_DOMAIN_OR_IP}:3001 (admin/admin)" || { print_warning "Grafana UI недоступна: http://${SERVER_DOMAIN_OR_IP}:3001"; ok=false; }
+        # Проверяем оба варианта портов Grafana: 3000 (deb) и 3001 (docker-compose)
+        if curl -fsS http://${SERVER_DOMAIN_OR_IP}:3000 >/dev/null 2>&1; then
+            print_success "Grafana UI доступна: http://${SERVER_DOMAIN_OR_IP}:3000 (admin/admin)"
+        elif curl -fsS http://${SERVER_DOMAIN_OR_IP}:3001 >/dev/null 2>&1; then
+            print_success "Grafana UI доступна: http://${SERVER_DOMAIN_OR_IP}:3001 (admin/admin)"
+        else
+            print_warning "Grafana UI недоступна на портах 3000/3001"
+            ok=false
+        fi
     fi
 
     if [ "$ok" = true ]; then
@@ -1343,7 +1351,13 @@ setup_firewall() {
     sudo ufw allow 443     # HTTPS
     sudo ufw allow 3000    # Frontend
     sudo ufw allow 8000    # API
-    # Порты мониторинга отключены по умолчанию (установка стека не входит в скрипт)
+    # Если включена установка мониторинга — открываем порты Grafana/Prometheus
+    if [ "${WORKERNET_INSTALL_MONITORING:-1}" = "1" ]; then
+        # Grafana .deb по умолчанию слушает 3000; docker-compose — 3001
+        sudo ufw allow 3000/tcp || true
+        sudo ufw allow 3001/tcp || true
+        sudo ufw allow 9090/tcp || true
+    fi
     
     print_success "Файрвол настроен"
 }
