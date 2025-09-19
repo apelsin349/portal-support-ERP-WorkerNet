@@ -399,16 +399,52 @@ install_monitoring_stack() {
         sudo rm -f /etc/apt/sources.list.d/grafana.list /etc/apt/sources.list.d/grafana-oss.list || true
     fi
     # Настраиваем актуальный репозиторий apt.grafana.com с keyring
+    APT_GRAFANA_OK=false
     if ! grep -q "apt.grafana.com" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
         print_status "Добавляем репозиторий Grafana (apt.grafana.com) и ключ..."
         sudo install -m 0755 -d /etc/apt/keyrings || true
-        curl -fsSL https://apt.grafana.com/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/grafana.gpg || true
-        sudo chmod a+r /etc/apt/keyrings/grafana.gpg || true
-        echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list >/dev/null
+        if curl $CURL_OPTS https://apt.grafana.com/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/grafana.gpg; then
+            sudo chmod a+r /etc/apt/keyrings/grafana.gpg || true
+            echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list >/dev/null
+        else
+            print_warning "Не удалось получить ключ apt.grafana.com (возможно 403). Будет использован фолбэк на .deb установку."
+        fi
     fi
 
-    sudo apt update -y
-    sudo apt install -y prometheus grafana || true
+    # Обновляем индексы пакетов; не прерываем выполнение при ошибке Grafana репозитория
+    if sudo apt -o Acquire::http::Timeout=$APT_HTTP_TIMEOUT -o Acquire::https::Timeout=$APT_HTTPS_TIMEOUT update; then
+        # Проверим, нет ли явной ошибки 403 для apt.grafana.com
+        if check_url "https://apt.grafana.com/dists/stable/InRelease"; then
+            APT_GRAFANA_OK=true
+        fi
+    fi
+
+    # Устанавливаем Prometheus из APT, а Grafana — либо из APT, либо из .deb (фолбэк)
+    sudo apt install -y prometheus || true
+    if [ "$APT_GRAFANA_OK" = true ]; then
+        sudo apt install -y grafana || true
+    else
+        print_warning "Установка Grafana из репозитория недоступна. Переходим на установку из .deb"
+        # Фолбэк: установка Grafana из релизного .deb
+        GRAFANA_VERSION="${GRAFANA_VERSION:-10.4.3}"
+        # Можно переопределить зеркалом в РФ через переменную окружения GRAFANA_DEB_URL
+        GRAFANA_DEB_URL_DEFAULT="https://dl.grafana.com/oss/release/grafana_${GRAFANA_VERSION}_amd64.deb"
+        GRAFANA_DEB_URL="${GRAFANA_DEB_URL:-$GRAFANA_DEB_URL_DEFAULT}"
+        TMP_DEB="/tmp/grafana_${GRAFANA_VERSION}_amd64.deb"
+        if curl $CURL_OPTS "$GRAFANA_DEB_URL" -o "$TMP_DEB"; then
+            sudo apt install -y adduser libfontconfig1 || true
+            if sudo dpkg -i "$TMP_DEB"; then
+                print_success "Grafana установлена из .deb (${GRAFANA_VERSION})"
+            else
+                print_warning "dpkg сообщил о неудовлетворённых зависимостях — пытаемся исправить"
+                sudo apt -f install -y || true
+            fi
+            rm -f "$TMP_DEB" || true
+        else
+            print_error "Не удалось загрузить .deb Grafana по адресу: $GRAFANA_DEB_URL"
+            echo "Подсказка: укажите зеркало через переменную окружения GRAFANA_DEB_URL (например, локальный артефакт-сервер)."
+        fi
+    fi
 
     # Включаем автозапуск
     sudo systemctl enable prometheus 2>/dev/null || true
