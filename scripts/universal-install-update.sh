@@ -1219,6 +1219,29 @@ setup_nodejs_env() {
         fi
     fi
 
+    # Определяем режим работы (production/development)
+    PRODUCTION_MODE=${WORKERNET_PRODUCTION:-false}
+    if [ "$PRODUCTION_MODE" = "true" ] || [ "${NODE_ENV:-}" = "production" ]; then
+        print_status "Режим продакшена: используем строгие проверки безопасности"
+        PRODUCTION_MODE=true
+    else
+        print_status "Режим разработки: разрешены fallback стратегии"
+        PRODUCTION_MODE=false
+    fi
+
+    # Определяем предпочтительный пакетный менеджер
+    PACKAGE_MANAGER=${WORKERNET_PACKAGE_MANAGER:-"npm"}
+    if command -v yarn >/dev/null 2>&1 && [ "$PACKAGE_MANAGER" = "yarn" ]; then
+        print_status "Используем Yarn как пакетный менеджер"
+        PACKAGE_MANAGER="yarn"
+    elif command -v pnpm >/dev/null 2>&1 && [ "$PACKAGE_MANAGER" = "pnpm" ]; then
+        print_status "Используем pnpm как пакетный менеджер"
+        PACKAGE_MANAGER="pnpm"
+    else
+        print_status "Используем npm как пакетный менеджер"
+        PACKAGE_MANAGER="npm"
+    fi
+
     # Последовательно пробуем реестры с повторами
     REGISTRIES=(
         "https://registry.npmjs.org"
@@ -1227,59 +1250,288 @@ setup_nodejs_env() {
 
     INSTALL_OK=false
     for REG in "${REGISTRIES[@]}"; do
-        npm config set registry "$REG" >/dev/null 2>&1 || true
+        # Настраиваем реестр для выбранного пакетного менеджера
+        case "$PACKAGE_MANAGER" in
+            "yarn")
+                yarn config set registry "$REG" >/dev/null 2>&1 || true
+                ;;
+            "pnpm")
+                pnpm config set registry "$REG" >/dev/null 2>&1 || true
+                ;;
+            *)
+                npm config set registry "$REG" >/dev/null 2>&1 || true
+                ;;
+        esac
         
-        # Стратегия 1: npm install без lock файла
-        if [ ! -f package-lock.json ]; then
+        # Стратегия 1: Установка через lock файл (ПРИОРИТЕТ для продакшена)
+        LOCK_FILE=""
+        case "$PACKAGE_MANAGER" in
+            "yarn")
+                LOCK_FILE="yarn.lock"
+                ;;
+            "pnpm")
+                LOCK_FILE="pnpm-lock.yaml"
+                ;;
+            *)
+                LOCK_FILE="package-lock.json"
+                ;;
+        esac
+        
+        if [ -f "$LOCK_FILE" ]; then
             for ATTEMPT in 1 2 3; do
-                echo "Попытка $ATTEMPT с реестром: $REG (npm install без lock)"
-                if npm install --omit=optional --no-audit --no-fund; then
-                    INSTALL_OK=true
-                    break
-                fi
+                echo "Попытка $ATTEMPT с реестром: $REG ($PACKAGE_MANAGER install - рекомендуемый для продакшена)"
+                case "$PACKAGE_MANAGER" in
+                    "yarn")
+                        if yarn install --frozen-lockfile --production=false; then
+                            INSTALL_OK=true
+                            print_success "Установка через yarn успешна (продакшен-готово)"
+                            break
+                        fi
+                        ;;
+                    "pnpm")
+                        if pnpm install --frozen-lockfile; then
+                            INSTALL_OK=true
+                            print_success "Установка через pnpm успешна (продакшен-готово)"
+                            break
+                        fi
+                        ;;
+                    *)
+                        if npm ci --omit=optional --no-audit --no-fund; then
+                            INSTALL_OK=true
+                            print_success "Установка через npm ci успешна (продакшен-готово)"
+                            break
+                        fi
+                        ;;
+                esac
                 sleep $((ATTEMPT * 2))
             done
         fi
         
-        # Стратегия 2: npm install с принудительным обновлением
-        if [ "$INSTALL_OK" != true ]; then
+        # Стратегия 2: Установка без lock файла (только для разработки)
+        if [ "$INSTALL_OK" != true ] && [ "$PRODUCTION_MODE" = false ] && [ ! -f "$LOCK_FILE" ]; then
             for ATTEMPT in 1 2 3; do
-                echo "Попытка $ATTEMPT с реестром: $REG (npm install принудительно)"
-                if npm install --omit=optional --no-audit --no-fund --force; then
-                    INSTALL_OK=true
-                    break
-                fi
+                echo "Попытка $ATTEMPT с реестром: $REG ($PACKAGE_MANAGER install без lock - режим разработки)"
+                case "$PACKAGE_MANAGER" in
+                    "yarn")
+                        if yarn install --production=false; then
+                            INSTALL_OK=true
+                            print_warning "Установка через yarn (режим разработки)"
+                            break
+                        fi
+                        ;;
+                    "pnpm")
+                        if pnpm install; then
+                            INSTALL_OK=true
+                            print_warning "Установка через pnpm (режим разработки)"
+                            break
+                        fi
+                        ;;
+                    *)
+                        if npm install --omit=optional --no-audit --no-fund; then
+                            INSTALL_OK=true
+                            print_warning "Установка через npm install (режим разработки)"
+                            break
+                        fi
+                        ;;
+                esac
                 sleep $((ATTEMPT * 2))
             done
         fi
         
-        # Стратегия 3: npm ci (только если lock файл существует и синхронизирован)
-        if [ "$INSTALL_OK" != true ] && [ -f package-lock.json ]; then
+        # Стратегия 3: Принудительная установка (только для разработки)
+        if [ "$INSTALL_OK" != true ] && [ "$PRODUCTION_MODE" = false ]; then
+            print_warning "Обычная установка не удалась, пробуем принудительную установку..."
+            print_warning "ВНИМАНИЕ: принудительная установка отключает защитные механизмы!"
             for ATTEMPT in 1 2 3; do
-                echo "Попытка $ATTEMPT с реестром: $REG (npm ci)"
-                if npm ci --omit=optional --no-audit --no-fund; then
-                    INSTALL_OK=true
-                    break
-                fi
+                echo "Попытка $ATTEMPT с реестром: $REG ($PACKAGE_MANAGER install принудительно)"
+                case "$PACKAGE_MANAGER" in
+                    "yarn")
+                        if yarn install --force --production=false; then
+                            INSTALL_OK=true
+                            print_warning "Установка через yarn --force завершена"
+                            break
+                        fi
+                        ;;
+                    "pnpm")
+                        if pnpm install --force; then
+                            INSTALL_OK=true
+                            print_warning "Установка через pnpm --force завершена"
+                            break
+                        fi
+                        ;;
+                    *)
+                        if npm install --omit=optional --no-audit --no-fund --force; then
+                            INSTALL_OK=true
+                            print_warning "Установка завершена с --force. Рекомендуется проверить совместимость пакетов!"
+                            break
+                        fi
+                        ;;
+                esac
                 sleep $((ATTEMPT * 2))
             done
         fi
         
-        # Стратегия 4: Минимальная установка без lock файла
-        if [ "$INSTALL_OK" != true ]; then
+        # Стратегия 4: Минимальная установка без lock файла (только для разработки)
+        if [ "$INSTALL_OK" != true ] && [ "$PRODUCTION_MODE" = false ]; then
             print_warning "Все стратегии не сработали, пробуем минимальную установку..."
-            rm -f package-lock.json >/dev/null 2>&1 || true
+            rm -f "$LOCK_FILE" >/dev/null 2>&1 || true
             rm -rf node_modules >/dev/null 2>&1 || true
-            if npm install --omit=optional --no-audit --no-fund --no-package-lock; then
-                INSTALL_OK=true
-            fi
+            case "$PACKAGE_MANAGER" in
+                "yarn")
+                    if yarn install --production=false; then
+                        INSTALL_OK=true
+                        print_warning "Минимальная установка через yarn завершена (режим разработки)"
+                    fi
+                    ;;
+                "pnpm")
+                    if pnpm install; then
+                        INSTALL_OK=true
+                        print_warning "Минимальная установка через pnpm завершена (режим разработки)"
+                    fi
+                    ;;
+                *)
+                    if npm install --omit=optional --no-audit --no-fund --no-package-lock; then
+                        INSTALL_OK=true
+                        print_warning "Минимальная установка через npm завершена (режим разработки)"
+                    fi
+                    ;;
+            esac
         fi
         
         [ "$INSTALL_OK" = true ] && break
     done
 
-    if [ "$INSTALL_OK" != true ]; then
-        print_warning "npm install не удалось после нескольких попыток. Проверьте сеть/прокси."
+    # Пост-установочные проверки безопасности и целостности
+    if [ "$INSTALL_OK" = true ]; then
+        print_status "Выполняем проверки безопасности и целостности..."
+        
+        # Проверка 1: Аудит безопасности
+        print_status "Проверяем уязвимости безопасности..."
+        AUDIT_CMD=""
+        AUDIT_FIX_CMD=""
+        case "$PACKAGE_MANAGER" in
+            "yarn")
+                AUDIT_CMD="yarn audit --level moderate"
+                AUDIT_FIX_CMD="yarn audit fix"
+                ;;
+            "pnpm")
+                AUDIT_CMD="pnpm audit --audit-level moderate"
+                AUDIT_FIX_CMD="pnpm audit fix"
+                ;;
+            *)
+                AUDIT_CMD="npm audit --audit-level=moderate"
+                AUDIT_FIX_CMD="npm audit fix --audit-level=moderate"
+                ;;
+        esac
+        
+        if $AUDIT_CMD >/dev/null 2>&1; then
+            print_success "Аудит безопасности пройден успешно"
+        else
+            print_warning "Обнаружены уязвимости безопасности:"
+            $AUDIT_CMD 2>/dev/null || true
+            if [ "$PRODUCTION_MODE" = true ]; then
+                print_error "В режиме продакшена обнаружены критические уязвимости!"
+                print_status "Попытка автоматического исправления..."
+                if $AUDIT_FIX_CMD >/dev/null 2>&1; then
+                    print_success "Уязвимости исправлены автоматически"
+                else
+                    print_warning "Требуется ручное исправление: $AUDIT_FIX_CMD"
+                fi
+            else
+                print_warning "Рекомендуется выполнить: $AUDIT_FIX_CMD"
+            fi
+        fi
+        
+        # Проверка 2: Peer dependencies
+        print_status "Проверяем peer dependencies..."
+        LS_CMD=""
+        case "$PACKAGE_MANAGER" in
+            "yarn")
+                LS_CMD="yarn list --depth=0"
+                ;;
+            "pnpm")
+                LS_CMD="pnpm list --depth=0"
+                ;;
+            *)
+                LS_CMD="npm ls --depth=0"
+                ;;
+        esac
+        
+        if $LS_CMD >/dev/null 2>&1; then
+            print_success "Все зависимости установлены корректно"
+        else
+            print_warning "Обнаружены проблемы с зависимостями:"
+            $LS_CMD 2>/dev/null || true
+            if [ "$PRODUCTION_MODE" = true ]; then
+                print_error "В режиме продакшена обнаружены проблемы с зависимостями!"
+            fi
+        fi
+        
+        # Проверка 3: Валидация lock файлов (только для продакшена)
+        if [ "$PRODUCTION_MODE" = true ] && [ -f "$LOCK_FILE" ]; then
+            print_status "Валидируем $LOCK_FILE для продакшена..."
+            VALIDATE_CMD=""
+            case "$PACKAGE_MANAGER" in
+                "yarn")
+                    VALIDATE_CMD="yarn install --frozen-lockfile --dry-run"
+                    ;;
+                "pnpm")
+                    VALIDATE_CMD="pnpm install --frozen-lockfile --dry-run"
+                    ;;
+                *)
+                    VALIDATE_CMD="npm ci --dry-run"
+                    ;;
+            esac
+            
+            if $VALIDATE_CMD >/dev/null 2>&1; then
+                print_success "$LOCK_FILE валиден для продакшена"
+            else
+                print_error "$LOCK_FILE поврежден или не синхронизирован!"
+                print_status "Обновляем $LOCK_FILE..."
+                rm -f "$LOCK_FILE"
+                case "$PACKAGE_MANAGER" in
+                    "yarn")
+                        yarn install --production=false >/dev/null 2>&1 || true
+                        ;;
+                    "pnpm")
+                        pnpm install >/dev/null 2>&1 || true
+                        ;;
+                    *)
+                        npm install --package-lock-only >/dev/null 2>&1 || true
+                        ;;
+                esac
+            fi
+        fi
+        
+        # Проверка 4: Размер node_modules (предупреждение)
+        NODE_MODULES_SIZE=$(du -sh node_modules 2>/dev/null | cut -f1 || echo "неизвестно")
+        print_status "Размер node_modules: $NODE_MODULES_SIZE"
+        if [ "$NODE_MODULES_SIZE" != "неизвестно" ]; then
+            # Извлекаем только число из размера (например, "150M" -> "150")
+            SIZE_NUM=$(echo "$NODE_MODULES_SIZE" | sed 's/[^0-9.]//g')
+            if [ -n "$SIZE_NUM" ] && [ "$(echo "$SIZE_NUM > 500" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
+                print_warning "Большой размер node_modules ($NODE_MODULES_SIZE). Рассмотрите очистку неиспользуемых зависимостей."
+            fi
+        fi
+    else
+        print_error "$PACKAGE_MANAGER install не удалось после нескольких попыток. Проверьте сеть/прокси."
+        if [ "$PRODUCTION_MODE" = true ]; then
+            print_error "В режиме продакшена установка зависимостей обязательна!"
+            exit 1
+        fi
+    fi
+    
+    # Показываем информацию о использованных инструментах (только при успешной установке)
+    if [ "$INSTALL_OK" = true ]; then
+        print_success "Установка зависимостей завершена успешно!"
+        print_status "Использованный пакетный менеджер: $PACKAGE_MANAGER"
+        print_status "Режим работы: $([ "$PRODUCTION_MODE" = true ] && echo "продакшен" || echo "разработка")"
+        if [ "$PRODUCTION_MODE" = true ]; then
+            print_status "Рекомендации для продакшена:"
+            print_status "  • Регулярно обновляйте $LOCK_FILE"
+            print_status "  • Выполняйте аудит безопасности: $AUDIT_CMD"
+            print_status "  • Используйте CI/CD с $PACKAGE_MANAGER ci/install --frozen-lockfile"
+        fi
     fi
     
     # Исправляем права на выполнение для всех исполняемых файлов в node_modules/.bin
