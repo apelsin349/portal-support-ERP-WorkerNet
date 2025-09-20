@@ -22,7 +22,12 @@ REPO_BRANCH="${WORKERNET_BRANCH:-main}"
 # DEBUG: Показываем начальные значения переменных
 
 # Server configuration (can be overridden via env)
-SERVER_DOMAIN_OR_IP="${WORKERNET_DOMAIN_OR_IP:-$(hostname -I | awk '{print $1}')}"
+# Автоматическое определение IP сервера для Ubuntu
+if command -v hostname >/dev/null 2>&1; then
+    SERVER_DOMAIN_OR_IP="${WORKERNET_DOMAIN_OR_IP:-$(hostname -I | awk '{print $1}' | head -1)}"
+else
+    SERVER_DOMAIN_OR_IP="${WORKERNET_DOMAIN_OR_IP:-$(curl -s ifconfig.me 2>/dev/null || echo 'localhost')}"
+fi
 
 # NPM registry and proxy configuration
 NPM_REGISTRY_DEFAULT="https://registry.npmmirror.com"
@@ -699,6 +704,70 @@ clone_repository() {
         fi
     fi
 }
+
+# Настройка файрвола Ubuntu
+setup_firewall() {
+    print_status "Настраиваем файрвол Ubuntu (UFW)..."
+    
+    # Проверяем, установлен ли UFW
+    if ! command -v ufw >/dev/null 2>&1; then
+        print_warning "UFW не установлен, пропускаем настройку файрвола"
+        return 0
+    fi
+    
+    # Порты для WorkerNet Portal
+    PORTS=(
+        "3000/tcp"  # Frontend
+        "8000/tcp"  # API
+        "3001/tcp"  # Grafana
+        "9090/tcp"  # Prometheus
+        "5555/tcp"  # Celery Flower
+    )
+    
+    # Открываем порты
+    for port in "${PORTS[@]}"; do
+        if ! ufw status | grep -q "$port"; then
+            print_status "Открываем порт $port..."
+            ufw allow "$port" 2>/dev/null || true
+        else
+            print_status "Порт $port уже открыт"
+        fi
+    done
+    
+    # Включаем UFW если он отключен
+    if ! ufw status | grep -q "Status: active"; then
+        print_status "Включаем UFW..."
+        ufw --force enable 2>/dev/null || true
+    fi
+    
+    print_success "Файрвол настроен"
+}
+
+# Показ информации о доступе к серверу
+show_access_info() {
+    print_status "Информация о доступе к WorkerNet Portal:"
+    echo
+    echo "🌐 Доступ к приложению:"
+    echo "   Frontend (PWA):    http://${SERVER_DOMAIN_OR_IP}:3000"
+    echo "   API:               http://${SERVER_DOMAIN_OR_IP}:8000"
+    echo "   Админ-панель:      http://${SERVER_DOMAIN_OR_IP}:8000/admin"
+    echo "   API документация:  http://${SERVER_DOMAIN_OR_IP}:8000/api/docs"
+    echo
+    echo "📊 Мониторинг:"
+    echo "   Grafana:           http://${SERVER_DOMAIN_OR_IP}:3001"
+    echo "   Prometheus:        http://${SERVER_DOMAIN_OR_IP}:9090"
+    echo "   Celery Flower:     http://${SERVER_DOMAIN_OR_IP}:5555"
+    echo
+    echo "🔑 Логин: admin | Пароль: admin123"
+    echo
+    echo "📝 Полезные команды:"
+    echo "   Статус сервисов:   sudo systemctl status workernet-backend workernet-frontend"
+    echo "   Логи бэкенда:      sudo journalctl -u workernet-backend -f"
+    echo "   Логи фронтенда:    sudo journalctl -u workernet-frontend -f"
+    echo "   Перезапуск:        sudo systemctl restart workernet-backend workernet-frontend"
+    echo
+}
+
 # Настройка окружения (.env с автогенерацией безопасных значений)
 setup_environment() {
     print_status "Настраиваем окружение (.env с автогенерацией)..."
@@ -1586,6 +1655,7 @@ main() {
         select_branch_with_check
         clone_repository
         setup_environment
+        setup_firewall
         # Гарантируем наличие каталога логов бэкенда до миграций
         mkdir -p "${WORKERNET_ROOT:-.}/backend/logs" || true
         setup_python_env
@@ -1606,6 +1676,7 @@ main() {
         
         # Final information
         show_final_info
+        show_access_info
     fi
 }
 

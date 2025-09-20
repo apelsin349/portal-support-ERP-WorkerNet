@@ -20,8 +20,26 @@
 
 ## ⚡ Быстрый старт
 
+### 🖥️ Установка на сервер Ubuntu
+
+**👉 [Быстрый старт на сервере](SERVER_QUICK_START.md)**
+
 ```bash
-# С Docker (рекомендуется)
+# Подключитесь к серверу Ubuntu по SSH
+ssh user@your-server-ip
+
+# Клонируйте репозиторий
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
+cd portal-support-ERP-WorkerNet
+
+# Запустите универсальную установку (включает Docker, зависимости, настройки)
+bash scripts/universal-install-update.sh
+```
+
+### 💻 Локальная установка с Docker
+
+```bash
+# Клонируйте репозиторий
 git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
@@ -30,9 +48,6 @@ cp env.example .env
 
 # Запустить все сервисы
 docker compose up -d
-
-# Или установка на Ubuntu
-./scripts/universal-install-update.sh
 ```
 
 ### Если получаете «Permission denied» при запуске скриптов
@@ -41,13 +56,13 @@ docker compose up -d
 
 ```bash
 # Запустить без execute-бита
-bash ./scripts/quick-update.sh
+bash ./scripts/universal-install-update.sh
 
 # Или единоразово поправить права и переводы строк
 bash ./scripts/fix-perms.sh
 
 # После этого можно запускать обычно
-./scripts/quick-update.sh
+./scripts/universal-install-update.sh
 ```
 
 Рекомендуется также для WSL включить метаданные в `/etc/wsl.conf`:
@@ -60,21 +75,40 @@ options = "metadata"
 
 ## 🌐 Доступ
 
-**⚠️ Замените `localhost` на ваш домен или IP-адрес сервера!**
+**⚠️ Замените `YOUR_SERVER_IP` на IP-адрес вашего сервера!**
 
-- **Web приложение**: http://YOUR_DOMAIN_OR_IP:3000
-- **API**: http://YOUR_DOMAIN_OR_IP:8000/api/v1/
-- **Админ панель**: http://YOUR_DOMAIN_OR_IP:8000/admin/
-- **Документация API**: http://YOUR_DOMAIN_OR_IP:8000/api/docs/
-- **Grafana**: http://YOUR_DOMAIN_OR_IP:3001
-- **Prometheus**: http://YOUR_DOMAIN_OR_IP:9090
-- **Celery Flower**: http://YOUR_DOMAIN_OR_IP:5555
+После установки WorkerNet Portal будет доступен по следующим адресам:
+
+- **Web приложение**: http://YOUR_SERVER_IP:3000
+- **API**: http://YOUR_SERVER_IP:8000/api/v1/
+- **Админ панель**: http://YOUR_SERVER_IP:8000/admin/
+- **Документация API**: http://YOUR_SERVER_IP:8000/api/docs/
+- **Grafana**: http://YOUR_SERVER_IP:3001
+- **Prometheus**: http://YOUR_SERVER_IP:9090
+- **Celery Flower**: http://YOUR_SERVER_IP:5555
 
 **Примеры:**
 - `http://192.168.1.100:3000` - для локальной сети
 - `http://yourdomain.com:3000` - для домена
+- `http://45.123.45.67:3000` - для публичного IP
 
 **Логин**: admin | **Пароль**: admin123
+
+### 🔥 Настройка файрвола на сервере
+
+Убедитесь, что порты открыты на сервере:
+
+```bash
+# Открыть необходимые порты
+sudo ufw allow 3000/tcp  # Frontend
+sudo ufw allow 8000/tcp  # API
+sudo ufw allow 3001/tcp  # Grafana
+sudo ufw allow 9090/tcp  # Prometheus
+sudo ufw allow 5555/tcp  # Celery Flower
+
+# Проверить статус
+sudo ufw status
+```
 
 ## 🆘 Поддержка
 

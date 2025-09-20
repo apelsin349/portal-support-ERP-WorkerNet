@@ -12,7 +12,27 @@
 
 ## 🛠 Установка
 
-### **Ubuntu/Linux**
+### **На сервер Ubuntu**
+
+```bash
+# Подключитесь к серверу Ubuntu
+ssh user@your-server-ip
+
+# Клонируйте репозиторий
+git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
+cd portal-support-ERP-WorkerNet
+
+# Полная установка с нуля
+bash scripts/universal-install-update.sh
+
+# Установка с самообновлением скрипта
+WORKERNET_SELF_UPDATE=1 bash scripts/universal-install-update.sh
+
+# Неинтерактивная установка
+WORKERNET_NONINTERACTIVE=1 bash scripts/universal-install-update.sh
+```
+
+### **Локальная установка**
 
 ```bash
 # Полная установка с нуля
@@ -53,26 +73,26 @@ export WORKERNET_ALLOWED_HOSTS_EXTRA="example.com,test.com"
 
 ```bash
 # Проверка обновлений
-./scripts/quick-update.sh --check
+./scripts/universal-install-update.sh --check
 
 # Обновление с подтверждением
-./scripts/quick-update.sh
+./scripts/universal-install-update.sh
 
 # Принудительное обновление
-./scripts/quick-update.sh --force
+./scripts/universal-install-update.sh --force
 
 # Неинтерактивное обновление
-WORKERNET_NONINTERACTIVE=1 ./scripts/quick-update.sh
+WORKERNET_NONINTERACTIVE=1 ./scripts/universal-install-update.sh
 ```
 
 ### **Windows**
 
 ```cmd
 # Проверка обновлений
-scripts\quick-update.sh --check
+scripts\universal-install-update.sh --check
 
 # Обновление
-scripts\quick-update.sh
+scripts\universal-install-update.sh
 ```
 
 ## 🐳 Docker
@@ -162,30 +182,35 @@ scripts\check-pwa.bat
 
 ## 🚀 Быстрый старт
 
-### **1. Установка**
+### **1. Установка на сервер**
 
 ```bash
+# Подключитесь к серверу Ubuntu
+ssh user@your-server-ip
+
 # Клонируйте репозиторий
 git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Запустите установку
-./scripts/universal-install-update.sh
+bash scripts/universal-install-update.sh
 ```
 
 ### **2. Проверка PWA**
 
 ```bash
 # Проверьте PWA функциональность
-./scripts/check-pwa.sh
+bash scripts/check-pwa.sh
 ```
 
 ### **3. Доступ к приложению**
 
-- **Фронтенд (PWA)**: http://localhost:3000
-- **API**: http://localhost:8000
-- **Админ-панель**: http://localhost:8000/admin
-- **Grafana**: http://localhost:3001 (admin/admin123)
+Замените `YOUR_SERVER_IP` на IP-адрес вашего сервера:
+
+- **Фронтенд (PWA)**: http://YOUR_SERVER_IP:3000
+- **API**: http://YOUR_SERVER_IP:8000
+- **Админ-панель**: http://YOUR_SERVER_IP:8000/admin
+- **Grafana**: http://YOUR_SERVER_IP:3001 (admin/admin123)
 
 ## 🔧 Устранение неполадок
 
