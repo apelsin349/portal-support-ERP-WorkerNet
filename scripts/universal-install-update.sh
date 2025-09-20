@@ -433,7 +433,7 @@ early_update_repository() {
     # Кандидаты на корень репозитория
     CANDIDATES=(
         "$(pwd)"
-        "$HOME/workernet-portal/portal-support-ERP-WorkerNet"
+        "$HOME/workernet-portal"
         "$HOME/portal-support-ERP-WorkerNet"
     )
 
@@ -1606,7 +1606,7 @@ main() {
             EXISTING_REPO=""
             CANDIDATES=(
                 "$(pwd)"
-                "$HOME/workernet-portal/portal-support-ERP-WorkerNet"
+                "$HOME/workernet-portal"
                 "$HOME/portal-support-ERP-WorkerNet"
             )
             
