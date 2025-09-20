@@ -760,12 +760,30 @@ setup_environment() {
         sed -i "s|/app/media|./media|g" .env
     fi
 
-    # Ensure required minimum set if keys were entirely absent
-    grep -q "^DJANGO_SECRET_KEY=" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
-    grep -q "^JWT_SECRET=" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
+    # Ensure required minimum set if keys were entirely absent or contain placeholders
+    if ! grep -q "^DJANGO_SECRET_KEY=" .env || grep -q "your-secret-key-here" .env; then
+        grep -q "^DJANGO_SECRET_KEY=" .env && sed -i "s|^DJANGO_SECRET_KEY=.*|DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")|" .env || echo "DJANGO_SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+    fi
+    if ! grep -q "^JWT_SECRET=" .env || grep -q "your-jwt-secret-key" .env; then
+        grep -q "^JWT_SECRET=" .env && sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(esc "$JWT_SECRET")|" .env || echo "JWT_SECRET=$(esc "$JWT_SECRET")" >> .env
+    fi
     # Для совместимости с настройками Django/DRF SimpleJWT
-    grep -q "^SECRET_KEY=" .env || echo "SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
-    grep -q "^JWT_SECRET_KEY=" .env || echo "JWT_SECRET_KEY=$(esc "$JWT_SECRET")" >> .env
+    if ! grep -q "^SECRET_KEY=" .env || grep -q "your-secret-key-here" .env || grep -q "^SECRET_KEY=$" .env; then
+        grep -q "^SECRET_KEY=" .env && sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(esc "$SECRET_KEY")|" .env || echo "SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+    fi
+    if ! grep -q "^JWT_SECRET_KEY=" .env || grep -q "your-jwt-secret-key" .env || grep -q "^JWT_SECRET_KEY=$" .env; then
+        grep -q "^JWT_SECRET_KEY=" .env && sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$(esc "$JWT_SECRET")|" .env || echo "JWT_SECRET_KEY=$(esc "$JWT_SECRET")" >> .env
+    fi
+
+    # Дополнительная проверка: принудительно устанавливаем SECRET_KEY если он пустой или содержит плейсхолдеры
+    if grep -q "^SECRET_KEY=$" .env || grep -q "your-secret-key-here" .env || ! grep -q "^SECRET_KEY=" .env; then
+        sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(esc "$SECRET_KEY")|" .env || echo "SECRET_KEY=$(esc "$SECRET_KEY")" >> .env
+        print_status "Установлен SECRET_KEY"
+    fi
+    if grep -q "^JWT_SECRET_KEY=$" .env || grep -q "your-jwt-secret-key" .env || ! grep -q "^JWT_SECRET_KEY=" .env; then
+        sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$(esc "$JWT_SECRET")|" .env || echo "JWT_SECRET_KEY=$(esc "$JWT_SECRET")" >> .env
+        print_status "Установлен JWT_SECRET_KEY"
+    fi
 
     # Продублируем .env в backend/, чтобы Django гарантированно его увидел
     if [ -d backend ]; then
