@@ -75,8 +75,6 @@ print_error() {
 
 # Выбор Git репозитория
 select_repository() {
-    print_status "DEBUG: select_repository() вызвана"
-    print_status "DEBUG: REPO_URL = '$REPO_URL'"
     # Если URL уже задан через переменную окружения, используем его
     if [ -n "$REPO_URL" ]; then
         print_status "Используем репозиторий из переменной окружения: $REPO_URL"
@@ -126,6 +124,76 @@ select_repository() {
     done
     
     print_status "Выбран репозиторий: $REPO_URL"
+}
+
+# Выбор ветки Git
+select_branch() {
+    # Если ветка уже задана через переменную окружения, используем её
+    if [ -n "$REPO_BRANCH" ] && [ "$REPO_BRANCH" != "main" ]; then
+        print_status "Используем ветку из переменной окружения: $REPO_BRANCH"
+        SELECTED_BRANCH="$REPO_BRANCH"
+        return 0
+    fi
+    
+    # Если неинтерактивный режим, используем main
+    if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
+        SELECTED_BRANCH="main"
+        print_status "Неинтерактивный режим: используем ветку main"
+        return 0
+    fi
+    
+    # Интерактивный выбор ветки
+    echo
+    print_status "Выберите ветку для установки:"
+    echo "1) main (стабильная версия)"
+    echo "2) develop (версия для разработки)"
+    echo "3) new-frontend (новая версия фронтенда)"
+    echo "4) Указать другую ветку"
+    echo "5) Использовать main (по умолчанию)"
+    echo
+    
+    while true; do
+        read -p "Введите номер (1-5) или название ветки: " choice
+        
+        case "$choice" in
+            1|main)
+                SELECTED_BRANCH="main"
+                break
+                ;;
+            2|develop)
+                SELECTED_BRANCH="develop"
+                break
+                ;;
+            3|new-frontend)
+                SELECTED_BRANCH="new-frontend"
+                break
+                ;;
+            4)
+                read -p "Введите название ветки: " custom_branch
+                if [ -n "$custom_branch" ]; then
+                    SELECTED_BRANCH="$custom_branch"
+                    break
+                else
+                    print_error "Название ветки не может быть пустым"
+                fi
+                ;;
+            5|"")
+                SELECTED_BRANCH="main"
+                break
+                ;;
+            *)
+                # Проверяем, не введено ли название ветки напрямую
+                if [[ "$choice" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
+                    SELECTED_BRANCH="$choice"
+                    break
+                else
+                    print_error "Неверный выбор. Введите номер (1-5) или название ветки"
+                fi
+                ;;
+        esac
+    done
+    
+    print_status "Выбрана ветка: $SELECTED_BRANCH"
 }
 
 ok() {
@@ -1473,13 +1541,6 @@ main() {
     print_status "Запуск универсального скрипта установки/обновления WorkerNet Portal для Ubuntu 24.04 LTS..."
     echo
     
-    # DEBUG: Показываем начальные значения переменных
-    print_status "DEBUG: Начальные значения переменных:"
-    print_status "DEBUG: WORKERNET_REPO_URL = '${WORKERNET_REPO_URL:-}'"
-    print_status "DEBUG: REPO_URL = '$REPO_URL'"
-    print_status "DEBUG: CI = '${CI:-}'"
-    print_status "DEBUG: WORKERNET_NONINTERACTIVE = '${WORKERNET_NONINTERACTIVE:-}'"
-    echo
     
     # Опционально: самообновление скрипта (выполнится до любых действий)
     # ВНИМАНИЕ: Самообновление отключено по умолчанию, так как может загрузить старую версию
@@ -1512,13 +1573,7 @@ main() {
         # Режим обновления
         
         # Сначала определяем репозиторий для обновления
-        print_status "DEBUG: Режим обновления - определяем репозиторий"
-        print_status "DEBUG: REPO_URL = '$REPO_URL'"
-        print_status "DEBUG: CI = '${CI:-}'"
-        print_status "DEBUG: WORKERNET_NONINTERACTIVE = '${WORKERNET_NONINTERACTIVE:-}'"
-        
         if [ -z "$REPO_URL" ]; then
-            print_status "DEBUG: REPO_URL пустой, переходим к интерактивному выбору"
             # Находим существующий репозиторий для показа текущего URL
             EXISTING_REPO=""
             CANDIDATES=(
@@ -1535,7 +1590,6 @@ main() {
             done
             
             echo
-            print_status "DEBUG: Найден существующий репозиторий: $EXISTING_REPO"
             print_status "Обновление существующей установки"
             echo "Текущий репозиторий: $EXISTING_REPO"
             echo
@@ -1544,7 +1598,6 @@ main() {
             echo "2) Сменить репозиторий"
             echo "3) Использовать текущий (по умолчанию)"
             echo
-            print_status "DEBUG: Ожидаем ввод пользователя..."
             
             while true; do
                 read -p "Введите номер (1-3): " choice
@@ -1554,11 +1607,15 @@ main() {
                         # Используем текущий репозиторий
                         REPO_URL="$EXISTING_REPO"
                         print_status "Используем текущий репозиторий: $REPO_URL"
+                        # Выбираем ветку для текущего репозитория
+                        select_branch
                         break
                         ;;
                     2)
                         # Позволяем выбрать новый репозиторий
                         select_repository
+                        # После выбора репозитория выбираем ветку
+                        select_branch
                         break
                         ;;
                     *)
@@ -1567,7 +1624,6 @@ main() {
                 esac
             done
         else
-            print_status "DEBUG: REPO_URL уже установлен, пропускаем интерактивный выбор"
             print_status "Используем репозиторий из переменной окружения: $REPO_URL"
         fi
         
@@ -1596,9 +1652,10 @@ main() {
         
     else
         # Режим новой установки
-        print_status "DEBUG: Режим новой установки - выбираем репозиторий"
         # Выбираем репозиторий для новой установки
         select_repository
+        # Выбираем ветку для новой установки
+        select_branch
         fresh_installation
         
         # Check prerequisites
