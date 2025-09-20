@@ -41,13 +41,13 @@ docker compose up -d
 
 ```bash
 # Запустить без execute-бита
-bash ./scripts/quick-update.sh
+bash ./scripts/universal-install-update.sh
 
 # Или единоразово поправить права и переводы строк
 bash ./scripts/fix-perms.sh
 
 # После этого можно запускать обычно
-./scripts/quick-update.sh
+./scripts/universal-install-update.sh
 ```
 
 Рекомендуется также для WSL включить метаданные в `/etc/wsl.conf`:

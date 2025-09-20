@@ -53,26 +53,26 @@ export WORKERNET_ALLOWED_HOSTS_EXTRA="example.com,test.com"
 
 ```bash
 # Проверка обновлений
-./scripts/quick-update.sh --check
+./scripts/universal-install-update.sh --check
 
 # Обновление с подтверждением
-./scripts/quick-update.sh
+./scripts/universal-install-update.sh
 
 # Принудительное обновление
-./scripts/quick-update.sh --force
+./scripts/universal-install-update.sh --force
 
 # Неинтерактивное обновление
-WORKERNET_NONINTERACTIVE=1 ./scripts/quick-update.sh
+WORKERNET_NONINTERACTIVE=1 ./scripts/universal-install-update.sh
 ```
 
 ### **Windows**
 
 ```cmd
 # Проверка обновлений
-scripts\quick-update.sh --check
+scripts\universal-install-update.sh --check
 
 # Обновление
-scripts\quick-update.sh
+scripts\universal-install-update.sh
 ```
 
 ## 🐳 Docker

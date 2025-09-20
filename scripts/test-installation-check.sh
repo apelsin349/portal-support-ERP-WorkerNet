@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Тестовый скрипт для проверки порядка выполнения проверок в install-ubuntu.sh
+# Тестовый скрипт для проверки порядка выполнения проверок в universal-install-update.sh
 
 set -e
 
@@ -30,10 +30,10 @@ print_error() {
 
 # Тест 1: Проверка порядка выполнения
 test_execution_order() {
-    print_status "Тест 1: Проверка порядка выполнения в install-ubuntu.sh"
+    print_status "Тест 1: Проверка порядка выполнения в universal-install-update.sh"
     
     # Извлекаем порядок вызовов функций из main()
-    if grep -A 20 "main() {" scripts/install-ubuntu.sh | grep -q "check_existing_installation"; then
+    if grep -A 20 "main() {" scripts/universal-install-update.sh | grep -q "check_existing_installation"; then
         print_success "✓ check_existing_installation вызывается в main()"
     else
         print_error "✗ check_existing_installation НЕ найден в main()"
@@ -41,8 +41,8 @@ test_execution_order() {
     fi
     
     # Проверяем, что check_existing_installation вызывается перед другими операциями
-    local main_start=$(grep -n "main() {" scripts/install-ubuntu.sh | cut -d: -f1)
-    local check_line=$(grep -n "check_existing_installation" scripts/install-ubuntu.sh | head -1 | cut -d: -f1)
+    local main_start=$(grep -n "main() {" scripts/universal-install-update.sh | cut -d: -f1)
+    local check_line=$(grep -n "check_existing_installation" scripts/universal-install-update.sh | head -1 | cut -d: -f1)
     
     if [ "$check_line" -gt "$main_start" ]; then
         print_success "✓ check_existing_installation вызывается после начала main()"
@@ -52,7 +52,7 @@ test_execution_order() {
     fi
     
     # Проверяем, что early_update_repository НЕ вызывается до check_existing_installation
-    local early_line=$(grep -n "early_update_repository" scripts/install-ubuntu.sh | head -1 | cut -d: -f1)
+    local early_line=$(grep -n "early_update_repository" scripts/universal-install-update.sh | head -1 | cut -d: -f1)
     if [ "$early_line" -gt "$check_line" ]; then
         print_success "✓ early_update_repository вызывается ПОСЛЕ check_existing_installation"
     else
@@ -66,7 +66,7 @@ test_variable_initialization() {
     print_status "Тест 2: Проверка инициализации переменных"
     
     # Проверяем, что INSTALLATION_MODE инициализирована
-    if grep -q 'INSTALLATION_MODE=""' scripts/install-ubuntu.sh; then
+    if grep -q 'INSTALLATION_MODE=""' scripts/universal-install-update.sh; then
         print_success "✓ INSTALLATION_MODE инициализирована в начале скрипта"
     else
         print_error "✗ INSTALLATION_MODE НЕ инициализирована"
@@ -74,7 +74,7 @@ test_variable_initialization() {
     fi
     
     # Проверяем, что есть проверка на пустую переменную
-    if grep -q 'if \[ -z "\$INSTALLATION_MODE" \]' scripts/install-ubuntu.sh; then
+    if grep -q 'if \[ -z "\$INSTALLATION_MODE" \]' scripts/universal-install-update.sh; then
         print_success "✓ Есть проверка на пустую INSTALLATION_MODE"
     else
         print_error "✗ НЕТ проверки на пустую INSTALLATION_MODE"
@@ -87,7 +87,7 @@ test_mode_selection_logic() {
     print_status "Тест 3: Проверка логики выбора режима"
     
     # Проверяем, что есть проверка на существующую установку
-    if grep -q "EXISTING_INSTALLATION=false" scripts/install-ubuntu.sh; then
+    if grep -q "EXISTING_INSTALLATION=false" scripts/universal-install-update.sh; then
         print_success "✓ Есть переменная EXISTING_INSTALLATION"
     else
         print_error "✗ НЕТ переменной EXISTING_INSTALLATION"
@@ -95,7 +95,7 @@ test_mode_selection_logic() {
     fi
     
     # Проверяем, что есть проверка на запущенные сервисы
-    if grep -q "SERVICES_RUNNING=false" scripts/install-ubuntu.sh; then
+    if grep -q "SERVICES_RUNNING=false" scripts/universal-install-update.sh; then
         print_success "✓ Есть переменная SERVICES_RUNNING"
     else
         print_error "✗ НЕТ переменной SERVICES_RUNNING"
@@ -103,7 +103,7 @@ test_mode_selection_logic() {
     fi
     
     # Проверяем, что есть неинтерактивный режим
-    if grep -q "WORKERNET_NONINTERACTIVE" scripts/install-ubuntu.sh; then
+    if grep -q "WORKERNET_NONINTERACTIVE" scripts/universal-install-update.sh; then
         print_success "✓ Есть поддержка неинтерактивного режима"
     else
         print_error "✗ НЕТ поддержки неинтерактивного режима"
@@ -116,7 +116,7 @@ test_documentation() {
     print_status "Тест 4: Проверка документации и комментариев"
     
     # Проверяем, что есть комментарии о порядке выполнения
-    if grep -q "ПЕРВЫМ ДЕЛОМ" scripts/install-ubuntu.sh; then
+    if grep -q "ПЕРВЫМ ДЕЛОМ" scripts/universal-install-update.sh; then
         print_success "✓ Есть комментарии о порядке выполнения"
     else
         print_error "✗ НЕТ комментариев о порядке выполнения"
@@ -124,7 +124,7 @@ test_documentation() {
     fi
     
     # Проверяем, что есть комментарии о режимах установки
-    if grep -q "режим установки" scripts/install-ubuntu.sh; then
+    if grep -q "режим установки" scripts/universal-install-update.sh; then
         print_success "✓ Есть комментарии о режимах установки"
     else
         print_error "✗ НЕТ комментариев о режимах установки"
@@ -134,7 +134,7 @@ test_documentation() {
 
 # Основная функция тестирования
 main() {
-    print_status "Запуск тестов проверки порядка выполнения в install-ubuntu.sh"
+    print_status "Запуск тестов проверки порядка выполнения в universal-install-update.sh"
     echo
     
     local tests_passed=0
@@ -168,7 +168,7 @@ main() {
         print_success "Все тесты пройдены! Проверка выполняется в правильном порядке."
         exit 0
     else
-        print_error "Некоторые тесты не пройдены. Проверьте скрипт install-ubuntu.sh"
+        print_error "Некоторые тесты не пройдены. Проверьте скрипт universal-install-update.sh"
         exit 1
     fi
 }

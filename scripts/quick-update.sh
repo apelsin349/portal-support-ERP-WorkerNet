@@ -1,6 +1,18 @@
 #!/bin/bash
 
-# Скрипт быстрого обновления WorkerNet Portal
+# УСТАРЕЛ: Используйте universal-install-update.sh
+# Этот скрипт устарел и будет заменен на universal-install-update.sh
+
+echo "[ВНИМАНИЕ] Этот скрипт устарел!"
+echo "[ИНФО] Используйте новый универсальный скрипт:"
+echo "  ./scripts/universal-install-update.sh"
+echo
+echo "[ИНФО] Перенаправляем на универсальный скрипт..."
+
+# Перенаправляем на универсальный скрипт
+exec ./scripts/universal-install-update.sh "$@"
+
+# Скрипт быстрого обновления WorkerNet Portal (УСТАРЕЛ)
 # Используется для быстрого обновления без полной переустановки
 
 set -e

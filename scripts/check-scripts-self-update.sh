@@ -36,9 +36,7 @@ RAW_BASE_URL="https://raw.githubusercontent.com/apelsin349/portal-support-ERP-Wo
 
 # Список скриптов для проверки
 SCRIPTS_TO_CHECK=(
-    "scripts/quick-update.sh"
-    "scripts/install-ubuntu.sh"
-    "scripts/setup.sh"
+    "scripts/universal-install-update.sh"
     "scripts/start-docker.sh"
     "scripts/check-dependencies.sh"
     "scripts/check-database.sh"

@@ -360,14 +360,14 @@ npm install
 echo "AUTO_UPDATE=true" >> .env
 
 # Настроить расписание (crontab)
-0 2 * * 0 /path/to/scripts/quick-update.sh
+0 2 * * 0 /path/to/scripts/universal-install-update.sh
 ```
 
 ### Ручное обновление
 
 ```bash
 # Быстрое обновление
-./scripts/quick-update.sh
+./scripts/universal-install-update.sh
 
 # Полное обновление
 ./scripts/universal-install-update.sh --update

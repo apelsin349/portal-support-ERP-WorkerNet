@@ -1,6 +1,18 @@
 #!/bin/bash
 
-# WorkerNet Portal Setup Script
+# УСТАРЕЛ: Используйте universal-install-update.sh
+# Этот скрипт устарел и будет заменен на universal-install-update.sh
+
+echo "[ВНИМАНИЕ] Этот скрипт устарел!"
+echo "[ИНФО] Используйте новый универсальный скрипт:"
+echo "  ./scripts/universal-install-update.sh"
+echo
+echo "[ИНФО] Перенаправляем на универсальный скрипт..."
+
+# Перенаправляем на универсальный скрипт
+exec ./scripts/universal-install-update.sh "$@"
+
+# WorkerNet Portal Setup Script (УСТАРЕЛ)
 # This script sets up the development environment
 
 set -e

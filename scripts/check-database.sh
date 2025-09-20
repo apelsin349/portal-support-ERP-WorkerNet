@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Скрипт для проверки и исправления базы данных
-# Использует функции из install-ubuntu.sh
+# Использует функции из universal-install-update.sh
 
 set -e
 
