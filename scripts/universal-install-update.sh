@@ -1291,6 +1291,39 @@ setup_nodejs_env() {
     print_success "Окружение Node.js настроено"
 }
 
+# Быстрая проверка зависимостей для генерации иконок
+check_icon_dependencies() {
+    if [ -z "$FRONTEND_DIR" ] || [ ! -f "$FRONTEND_DIR/package.json" ]; then
+        return 1
+    fi
+    
+    # Проверяем кэш установки зависимостей
+    local cache_file="$FRONTEND_DIR/icon-deps-report.json"
+    if [ -f "$cache_file" ]; then
+        local cache_age=$(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || echo 0)))
+        # Если кэш свежее 1 часа, считаем что зависимости актуальны
+        if [ $cache_age -lt 3600 ]; then
+            return 0
+        fi
+    fi
+    
+    # Проверяем основные зависимости для генерации иконок
+    local required_deps=("sharp" "jimp" "svg2png")
+    local missing_deps=()
+    
+    for dep in "${required_deps[@]}"; do
+        if ! grep -q "\"$dep\"" "$FRONTEND_DIR/package.json"; then
+            missing_deps+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing_deps[@]} -eq 0 ]; then
+        return 0  # Все зависимости установлены
+    else
+        return 1  # Есть отсутствующие зависимости
+    fi
+}
+
 # Проверка PWA функциональности
 check_pwa_functionality() {
     if [ -z "$FRONTEND_DIR" ]; then
@@ -1458,6 +1491,16 @@ check_pwa_functionality() {
                 npm install --omit=optional --no-audit --no-fund || print_warning "Не удалось установить зависимости"
             fi
             
+            # Проверяем и устанавливаем зависимости для генерации иконок
+            if [ -f "scripts/install-icon-deps.js" ]; then
+                if check_icon_dependencies; then
+                    print_success "Зависимости для генерации иконок уже установлены"
+                else
+                    print_status "Устанавливаем зависимости для генерации иконок..."
+                    node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+                fi
+            fi
+            
             # Генерируем иконки если нужно
             if [ -f "scripts/generate-icons.js" ]; then
                 print_status "Генерируем иконки для PWA..."
@@ -1510,10 +1553,14 @@ build_frontend() {
     
     cd "$FRONTEND_DIR"
     
-    # Устанавливаем зависимости для генерации иконок
+    # Проверяем и устанавливаем зависимости для генерации иконок
     if [ -f "scripts/install-icon-deps.js" ]; then
-        print_status "Устанавливаем зависимости для генерации иконок..."
-        node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+        if check_icon_dependencies; then
+            print_success "Зависимости для генерации иконок уже установлены"
+        else
+            print_status "Устанавливаем зависимости для генерации иконок..."
+            node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+        fi
     fi
     
     # Генерируем иконки для PWA
@@ -2214,6 +2261,7 @@ case "${1:-}" in
         echo "  --check-updates Проверить доступность обновлений скрипта"
         echo "  --check-pwa    Проверить PWA функциональность"
         echo "  --rebuild-pwa  Принудительно пересобрать PWA"
+        echo "  --force-deps   Принудительно переустановить зависимости"
         echo
         echo "Переменные окружения:"
         echo "  WORKERNET_BRANCH=BRANCH     Ветка для установки"
@@ -2230,6 +2278,7 @@ case "${1:-}" in
         echo "  $0 --check-updates         Проверить доступность обновлений"
         echo "  $0 --check-pwa             Проверить PWA функциональность"
         echo "  $0 --rebuild-pwa           Принудительно пересобрать PWA"
+        echo "  $0 --force-deps            Принудительно переустановить зависимости"
         echo "  WORKERNET_BRANCH=main $0   Установить ветку main через переменную"
         echo
         exit 0
@@ -2296,6 +2345,16 @@ case "${1:-}" in
             exit 1
         }
         
+        # Проверяем и устанавливаем зависимости для генерации иконок
+        if [ -f "scripts/install-icon-deps.js" ]; then
+            if check_icon_dependencies; then
+                print_success "Зависимости для генерации иконок уже установлены"
+            else
+                print_status "Устанавливаем зависимости для генерации иконок..."
+                node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+            fi
+        fi
+        
         # Генерируем иконки если нужно
         if [ -f "scripts/generate-icons.js" ]; then
             print_status "Генерируем иконки для PWA..."
@@ -2316,6 +2375,54 @@ case "${1:-}" in
             print_error "Ошибка пересборки фронтенда"
             exit 1
         fi
+        ;;
+    --force-deps)
+        print_status "Принудительная переустановка зависимостей WorkerNet Portal..."
+        echo
+        
+        # Определяем путь к фронтенду
+        if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "${WORKERNET_ROOT}/frontend" ]; then
+            FRONTEND_DIR="${WORKERNET_ROOT}/frontend"
+        elif [ -d "./frontend" ]; then
+            FRONTEND_DIR="./frontend"
+        elif [ -d "../frontend" ]; then
+            FRONTEND_DIR="../frontend"
+        else
+            print_error "Каталог фронтенда не найден"
+            echo "Подсказка: запустите скрипт из корня проекта WorkerNet Portal"
+            exit 1
+        fi
+        
+        # Переходим в каталог фронтенда
+        cd "$FRONTEND_DIR"
+        
+        # Удаляем кэш зависимостей
+        if [ -f "icon-deps-report.json" ]; then
+            print_status "Удаляем кэш зависимостей..."
+            rm -f "icon-deps-report.json"
+        fi
+        
+        # Удаляем node_modules для чистой переустановки
+        if [ -d "node_modules" ]; then
+            print_status "Удаляем существующие зависимости..."
+            rm -rf "node_modules"
+        fi
+        
+        # Устанавливаем зависимости
+        print_status "Устанавливаем зависимости..."
+        npm install --omit=optional --no-audit --no-fund || {
+            print_error "Не удалось установить зависимости"
+            exit 1
+        }
+        
+        # Устанавливаем зависимости для генерации иконок
+        if [ -f "scripts/install-icon-deps.js" ]; then
+            print_status "Устанавливаем зависимости для генерации иконок..."
+            node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+        fi
+        
+        print_success "Зависимости переустановлены успешно!"
+        exit 0
         ;;
     *)
         main "$@"
