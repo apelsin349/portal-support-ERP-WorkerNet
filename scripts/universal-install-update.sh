@@ -2123,6 +2123,41 @@ update_installation() {
         git submodule update --init --recursive 2>/dev/null || true
         
         print_success "Код обновлен"
+        
+        # Обновляем конфигурацию сервера (DOMAIN_OR_IP и ALLOWED_HOSTS)
+        if [ -f ".env" ]; then
+            print_status "Обновляем конфигурацию сервера..."
+            
+            # Update DOMAIN_OR_IP with server IP
+            if grep -q "^DOMAIN_OR_IP=" .env; then
+                sed -i "s|^DOMAIN_OR_IP=.*|DOMAIN_OR_IP=${SERVER_DOMAIN_OR_IP}|" .env
+            else
+                echo "DOMAIN_OR_IP=${SERVER_DOMAIN_OR_IP}" >> .env
+            fi
+
+            # Update ALLOWED_HOSTS with server IP
+            if grep -q "^ALLOWED_HOSTS=" .env; then
+                sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=${SERVER_DOMAIN_OR_IP},127.0.0.1,0.0.0.0,localhost|" .env
+            else
+                echo "ALLOWED_HOSTS=${SERVER_DOMAIN_OR_IP},127.0.0.1,0.0.0.0,localhost" >> .env
+            fi
+
+            # Update CORS_ALLOWED_ORIGINS with server IP
+            if grep -q "^CORS_ALLOWED_ORIGINS=" .env; then
+                sed -i "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000|" .env
+            else
+                echo "CORS_ALLOWED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000" >> .env
+            fi
+
+            # Update CSRF_TRUSTED_ORIGINS with server IP
+            if grep -q "^CSRF_TRUSTED_ORIGINS=" .env; then
+                sed -i "s|^CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000|" .env
+            else
+                echo "CSRF_TRUSTED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000" >> .env
+            fi
+
+            print_status "Обновлен DOMAIN_OR_IP и ALLOWED_HOSTS для IP: ${SERVER_DOMAIN_OR_IP}"
+        fi
     fi
     
     # Обновляем зависимости Python
@@ -2423,6 +2458,45 @@ case "${1:-}" in
         # Переходим в каталог фронтенда
         cd "$FRONTEND_DIR"
         
+        # Обновляем конфигурацию сервера (DOMAIN_OR_IP и ALLOWED_HOSTS)
+        if [ -f "../.env" ]; then
+            print_status "Обновляем конфигурацию сервера..."
+            cd ".."
+            
+            # Update DOMAIN_OR_IP with server IP
+            if grep -q "^DOMAIN_OR_IP=" .env; then
+                sed -i "s|^DOMAIN_OR_IP=.*|DOMAIN_OR_IP=${SERVER_DOMAIN_OR_IP}|" .env
+            else
+                echo "DOMAIN_OR_IP=${SERVER_DOMAIN_OR_IP}" >> .env
+            fi
+
+            # Update ALLOWED_HOSTS with server IP
+            if grep -q "^ALLOWED_HOSTS=" .env; then
+                sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=${SERVER_DOMAIN_OR_IP},127.0.0.1,0.0.0.0,localhost|" .env
+            else
+                echo "ALLOWED_HOSTS=${SERVER_DOMAIN_OR_IP},127.0.0.1,0.0.0.0,localhost" >> .env
+            fi
+
+            # Update CORS_ALLOWED_ORIGINS with server IP
+            if grep -q "^CORS_ALLOWED_ORIGINS=" .env; then
+                sed -i "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000|" .env
+            else
+                echo "CORS_ALLOWED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000" >> .env
+            fi
+
+            # Update CSRF_TRUSTED_ORIGINS with server IP
+            if grep -q "^CSRF_TRUSTED_ORIGINS=" .env; then
+                sed -i "s|^CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000|" .env
+            else
+                echo "CSRF_TRUSTED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000" >> .env
+            fi
+
+            print_status "Обновлен DOMAIN_OR_IP и ALLOWED_HOSTS для IP: ${SERVER_DOMAIN_OR_IP}"
+            
+            # Возвращаемся в каталог фронтенда
+            cd "$FRONTEND_DIR"
+        fi
+        
         print_status "Устанавливаем зависимости..."
         npm install --omit=optional --no-audit --no-fund || {
             print_error "Не удалось установить зависимости"
@@ -2489,6 +2563,45 @@ case "${1:-}" in
         
         # Переходим в каталог фронтенда
         cd "$FRONTEND_DIR"
+        
+        # Обновляем конфигурацию сервера (DOMAIN_OR_IP и ALLOWED_HOSTS)
+        if [ -f "../.env" ]; then
+            print_status "Обновляем конфигурацию сервера..."
+            cd ".."
+            
+            # Update DOMAIN_OR_IP with server IP
+            if grep -q "^DOMAIN_OR_IP=" .env; then
+                sed -i "s|^DOMAIN_OR_IP=.*|DOMAIN_OR_IP=${SERVER_DOMAIN_OR_IP}|" .env
+            else
+                echo "DOMAIN_OR_IP=${SERVER_DOMAIN_OR_IP}" >> .env
+            fi
+
+            # Update ALLOWED_HOSTS with server IP
+            if grep -q "^ALLOWED_HOSTS=" .env; then
+                sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=${SERVER_DOMAIN_OR_IP},127.0.0.1,0.0.0.0,localhost|" .env
+            else
+                echo "ALLOWED_HOSTS=${SERVER_DOMAIN_OR_IP},127.0.0.1,0.0.0.0,localhost" >> .env
+            fi
+
+            # Update CORS_ALLOWED_ORIGINS with server IP
+            if grep -q "^CORS_ALLOWED_ORIGINS=" .env; then
+                sed -i "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000|" .env
+            else
+                echo "CORS_ALLOWED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000" >> .env
+            fi
+
+            # Update CSRF_TRUSTED_ORIGINS with server IP
+            if grep -q "^CSRF_TRUSTED_ORIGINS=" .env; then
+                sed -i "s|^CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000|" .env
+            else
+                echo "CSRF_TRUSTED_ORIGINS=http://${SERVER_DOMAIN_OR_IP}:3000,http://127.0.0.1:3000,http://localhost:3000" >> .env
+            fi
+
+            print_status "Обновлен DOMAIN_OR_IP и ALLOWED_HOSTS для IP: ${SERVER_DOMAIN_OR_IP}"
+            
+            # Возвращаемся в каталог фронтенда
+            cd "$FRONTEND_DIR"
+        fi
         
         # Удаляем кэш зависимостей
         if [ -f "icon-deps-report.json" ]; then
