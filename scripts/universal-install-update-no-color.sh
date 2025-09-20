@@ -6,44 +6,13 @@
 
 set -e
 
-# Определяем поддержку цветов
-if [ "${NO_COLOR:-}" = "1" ] || [ "${WORKERNET_NO_COLOR:-}" = "1" ]; then
-    # Цвета отключены через переменную окружения
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    NC=''
-    USE_COLORS=false
-elif [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && command -v tput >/dev/null 2>&1; then
-    # Проверяем поддержку цветов через tput
-    COLORS=$(tput colors 2>/dev/null || echo 0)
-    if [ "$COLORS" -ge 8 ] 2>/dev/null; then
-        # Терминал поддерживает цвета
-        RED='\033[0;31m'
-        GREEN='\033[0;32m'
-        YELLOW='\033[1;33m'
-        BLUE='\033[0;34m'
-        NC='\033[0m'
-        USE_COLORS=true
-    else
-        # Терминал не поддерживает цвета
-        RED=''
-        GREEN=''
-        YELLOW=''
-        BLUE=''
-        NC=''
-        USE_COLORS=false
-    fi
-else
-    # Терминал не поддерживает цвета или не является интерактивным
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    NC=''
-    USE_COLORS=false
-fi
+# Цвета отключены для совместимости
+RED=''
+GREEN=''
+YELLOW=''
+BLUE=''
+NC=''
+USE_COLORS=false
 
 # Function to print colored output
 print_status() {
@@ -85,13 +54,6 @@ ok() {
         echo "[OK] $1"
     fi
 }
-
-# Отладочная информация о поддержке цветов (только в режиме отладки)
-if [ "${WORKERNET_DEBUG:-}" = "1" ]; then
-    echo "DEBUG: USE_COLORS=$USE_COLORS"
-    echo "DEBUG: TERM=${TERM:-не установлен}"
-    echo "DEBUG: tput colors=$(tput colors 2>/dev/null || echo 'недоступен')"
-fi
 
 # Ensure stable working directory to avoid "getcwd() failed" issues
 if git rev-parse --show-toplevel >/dev/null 2>&1; then
@@ -1821,7 +1783,6 @@ case "${1:-}" in
         echo "  WORKERNET_SELF_UPDATE=1     Самообновление скрипта"
         echo "  WORKERNET_NO_COLOR=1        Отключить цветной вывод"
         echo "  NO_COLOR=1                  Отключить цветной вывод (стандарт)"
-        echo "  WORKERNET_DEBUG=1           Включить отладочный режим"
         echo
         echo "Примеры:"
         echo "  $0 --branch develop        Установить ветку develop"
