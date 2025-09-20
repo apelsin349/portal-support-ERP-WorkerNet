@@ -1286,6 +1286,14 @@ setup_nodejs_env() {
     if [ -d "$FRONTEND_DIR/node_modules/.bin" ]; then
         print_status "Исправляем права на выполнение для исполняемых файлов npm..."
         chmod +x "$FRONTEND_DIR/node_modules/.bin"/* 2>/dev/null || true
+        
+        # Проверяем, что webpack имеет права на выполнение
+        if [ -f "$FRONTEND_DIR/node_modules/.bin/webpack" ]; then
+            if [ ! -x "$FRONTEND_DIR/node_modules/.bin/webpack" ]; then
+                print_warning "Webpack не имеет прав на выполнение, исправляем..."
+                chmod +x "$FRONTEND_DIR/node_modules/.bin/webpack" 2>/dev/null || true
+            fi
+        fi
     fi
     
     print_success "Окружение Node.js настроено"
@@ -1541,6 +1549,15 @@ check_pwa_functionality() {
                 node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
             fi
             
+            # Исправляем права на выполнение для webpack и других исполняемых файлов
+            print_status "Исправляем права на выполнение для webpack..."
+            if [ -f "node_modules/.bin/webpack" ]; then
+                chmod +x node_modules/.bin/webpack 2>/dev/null || true
+            fi
+            if [ -d "node_modules/.bin" ]; then
+                chmod +x node_modules/.bin/* 2>/dev/null || true
+            fi
+            
             # Пересобираем фронтенд
             print_status "Пересобираем фронтенд с PWA поддержкой..."
             if npm run build; then
@@ -1557,11 +1574,17 @@ check_pwa_functionality() {
             else
                 print_error "Ошибка пересборки фронтенда"
                 echo
+                echo "=== Диагностика ==="
+                echo "• Проверьте права доступа к node_modules/.bin/"
+                echo "• Убедитесь, что webpack установлен: ls -la node_modules/.bin/webpack"
+                echo "• Проверьте права на выполнение: chmod +x node_modules/.bin/*"
+                echo
                 echo "=== Ручные действия ==="
                 echo "1. Перейдите в каталог фронтенда: cd $FRONTEND_DIR"
-                echo "2. Установите зависимости: npm install"
-                echo "3. Соберите фронтенд: npm run build"
-                echo "4. Проверьте PWA: $0 --check-pwa"
+                echo "2. Исправьте права: chmod +x node_modules/.bin/*"
+                echo "3. Установите зависимости: npm install"
+                echo "4. Соберите фронтенд: npm run build"
+                echo "5. Проверьте PWA: $0 --check-pwa"
                 export PWA_CHECK_IN_PROGRESS=false
                 return 1
             fi
@@ -2404,6 +2427,15 @@ case "${1:-}" in
             node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
         fi
         
+        # Исправляем права на выполнение для webpack и других исполняемых файлов
+        print_status "Исправляем права на выполнение для webpack..."
+        if [ -f "node_modules/.bin/webpack" ]; then
+            chmod +x node_modules/.bin/webpack 2>/dev/null || true
+        fi
+        if [ -d "node_modules/.bin" ]; then
+            chmod +x node_modules/.bin/* 2>/dev/null || true
+        fi
+        
         # Пересобираем фронтенд
         print_status "Пересобираем фронтенд с PWA поддержкой..."
         if npm run build; then
@@ -2462,6 +2494,15 @@ case "${1:-}" in
         if [ -f "scripts/install-icon-deps.js" ]; then
             print_status "Устанавливаем зависимости для генерации иконок..."
             node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+        fi
+        
+        # Исправляем права на выполнение для webpack и других исполняемых файлов
+        print_status "Исправляем права на выполнение для webpack..."
+        if [ -f "node_modules/.bin/webpack" ]; then
+            chmod +x node_modules/.bin/webpack 2>/dev/null || true
+        fi
+        if [ -d "node_modules/.bin" ]; then
+            chmod +x node_modules/.bin/* 2>/dev/null || true
         fi
         
         print_success "Зависимости переустановлены успешно!"
