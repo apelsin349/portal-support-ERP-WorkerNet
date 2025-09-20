@@ -10,8 +10,18 @@ set -e
 if git rev-parse --show-toplevel >/dev/null 2>&1; then
     export WORKERNET_ROOT="$(git rev-parse --show-toplevel)"
     cd "$WORKERNET_ROOT" || exit 1
+    print_status "Используем существующий git репозиторий: $WORKERNET_ROOT"
 else
-    cd "$HOME" || exit 1
+    # Проверяем права на запись в текущей директории
+    if [ ! -w "." ]; then
+        print_warning "Нет прав на запись в текущей директории: $(pwd)"
+        print_status "Переходим в домашнюю директорию: $HOME"
+    fi
+    cd "$HOME" || {
+        print_error "Не удалось перейти в домашнюю директорию: $HOME"
+        exit 1
+    }
+    print_status "Рабочая директория: $(pwd)"
 fi
 
 # Repository configuration (can be overridden via env)
@@ -651,13 +661,29 @@ clone_repository() {
         return 0
     fi
 
+    # Проверяем права на запись в текущей директории
+    if [ ! -w "." ]; then
+        print_error "Нет прав на запись в текущей директории: $(pwd)"
+        print_status "Переходим в домашнюю директорию: $HOME"
+        cd "$HOME" || {
+            print_error "Не удалось перейти в домашнюю директорию: $HOME"
+            exit 1
+        }
+    fi
+
     # Create directory if missing
     if [ ! -d "portal-support-ERP-WorkerNet" ]; then
+        print_status "Клонируем репозиторий в: $(pwd)/portal-support-ERP-WorkerNet"
         if git clone "$REPO_URL" portal-support-ERP-WorkerNet; then
-            :
+            print_success "Репозиторий успешно клонирован"
         elif [ -n "$REPO_URL_MIRROR" ]; then
             print_warning "Основной репозиторий недоступен, пробуем зеркало: $REPO_URL_MIRROR"
-            git clone "$REPO_URL_MIRROR" portal-support-ERP-WorkerNet
+            if git clone "$REPO_URL_MIRROR" portal-support-ERP-WorkerNet; then
+                print_success "Репозиторий успешно клонирован с зеркала"
+            else
+                print_error "Не удалось клонировать репозиторий ни с основного URL, ни с зеркала"
+                exit 1
+            fi
         else
             print_error "Не удалось клонировать репозиторий"
             exit 1
@@ -1567,6 +1593,14 @@ fresh_installation() {
 # Main installation function
 main() {
     print_status "Запуск универсального скрипта установки/обновления WorkerNet Portal для Ubuntu 24.04 LTS..."
+    echo
+    
+    # Показываем текущую рабочую директорию
+    print_status "Рабочая директория: $(pwd)"
+    if [ ! -w "." ]; then
+        print_warning "Внимание: нет прав на запись в текущей директории!"
+        print_status "Скрипт автоматически перейдет в домашнюю директорию при необходимости"
+    fi
     echo
     
     
