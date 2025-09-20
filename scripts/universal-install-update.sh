@@ -1558,6 +1558,15 @@ check_pwa_functionality() {
                 chmod +x node_modules/.bin/* 2>/dev/null || true
             fi
             
+            # Дополнительная попытка исправления прав доступа
+            print_status "Дополнительная проверка прав доступа..."
+            if [ -f "node_modules/.bin/webpack" ]; then
+                if [ ! -x "node_modules/.bin/webpack" ]; then
+                    print_warning "Webpack не имеет прав на выполнение, исправляем..."
+                    chmod +x node_modules/.bin/webpack 2>/dev/null || true
+                fi
+            fi
+            
             # Пересобираем фронтенд
             print_status "Пересобираем фронтенд с PWA поддержкой..."
             if npm run build; then
@@ -1581,10 +1590,18 @@ check_pwa_functionality() {
                 echo
                 echo "=== Ручные действия ==="
                 echo "1. Перейдите в каталог фронтенда: cd $FRONTEND_DIR"
-                echo "2. Исправьте права: chmod +x node_modules/.bin/*"
+                echo "2. Исправьте права на выполнение:"
+                echo "   chmod +x node_modules/.bin/*"
+                echo "   chmod +x node_modules/.bin/webpack"
                 echo "3. Установите зависимости: npm install"
                 echo "4. Соберите фронтенд: npm run build"
                 echo "5. Проверьте PWA: $0 --check-pwa"
+                echo
+                echo "=== Быстрое исправление ==="
+                echo "Выполните эти команды:"
+                echo "cd $FRONTEND_DIR"
+                echo "chmod +x node_modules/.bin/*"
+                echo "npm run build"
                 export PWA_CHECK_IN_PROGRESS=false
                 return 1
             fi
@@ -2327,6 +2344,7 @@ case "${1:-}" in
         echo "  --check-pwa    Проверить PWA функциональность"
         echo "  --rebuild-pwa  Принудительно пересобрать PWA"
         echo "  --force-deps   Принудительно переустановить зависимости"
+        echo "  --fix-perms    Исправить права доступа к исполняемым файлам"
         echo
         echo "Переменные окружения:"
         echo "  WORKERNET_BRANCH=BRANCH     Ветка для установки"
@@ -2344,6 +2362,7 @@ case "${1:-}" in
         echo "  $0 --check-pwa             Проверить PWA функциональность"
         echo "  $0 --rebuild-pwa           Принудительно пересобрать PWA"
         echo "  $0 --force-deps            Принудительно переустановить зависимости"
+        echo "  $0 --fix-perms             Исправить права доступа к исполняемым файлам"
         echo "  WORKERNET_BRANCH=main $0   Установить ветку main через переменную"
         echo
         exit 0
@@ -2506,6 +2525,68 @@ case "${1:-}" in
         fi
         
         print_success "Зависимости переустановлены успешно!"
+        exit 0
+        ;;
+    --fix-perms)
+        print_status "Исправление прав доступа к исполняемым файлам..."
+        echo
+        
+        # Определяем путь к фронтенду
+        if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "${WORKERNET_ROOT}/frontend" ]; then
+            FRONTEND_DIR="${WORKERNET_ROOT}/frontend"
+        elif [ -d "./frontend" ]; then
+            FRONTEND_DIR="./frontend"
+        elif [ -d "../frontend" ]; then
+            FRONTEND_DIR="../frontend"
+        else
+            print_error "Каталог фронтенда не найден"
+            echo "Подсказка: запустите скрипт из корня проекта WorkerNet Portal"
+            exit 1
+        fi
+        
+        # Переходим в каталог фронтенда
+        cd "$FRONTEND_DIR"
+        
+        # Проверяем наличие node_modules
+        if [ ! -d "node_modules" ]; then
+            print_error "node_modules не найден. Сначала установите зависимости: npm install"
+            exit 1
+        fi
+        
+        # Исправляем права доступа
+        print_status "Исправляем права доступа к исполняемым файлам..."
+        if [ -d "node_modules/.bin" ]; then
+            chmod +x node_modules/.bin/* 2>/dev/null || true
+            print_success "Права доступа исправлены для всех файлов в node_modules/.bin/"
+        else
+            print_warning "node_modules/.bin не найден"
+        fi
+        
+        # Проверяем webpack отдельно
+        if [ -f "node_modules/.bin/webpack" ]; then
+            chmod +x node_modules/.bin/webpack 2>/dev/null || true
+            if [ -x "node_modules/.bin/webpack" ]; then
+                print_success "Webpack имеет права на выполнение"
+            else
+                print_error "Не удалось исправить права доступа к webpack"
+            fi
+        else
+            print_warning "Webpack не найден в node_modules/.bin/"
+        fi
+        
+        # Пробуем собрать фронтенд
+        print_status "Пробуем собрать фронтенд..."
+        if npm run build; then
+            print_success "Фронтенд собран успешно!"
+        else
+            print_error "Ошибка сборки фронтенда"
+            echo
+            echo "=== Дополнительные действия ==="
+            echo "1. Проверьте права: ls -la node_modules/.bin/webpack"
+            echo "2. Исправьте вручную: chmod +x node_modules/.bin/*"
+            echo "3. Попробуйте снова: npm run build"
+        fi
+        
         exit 0
         ;;
     *)
