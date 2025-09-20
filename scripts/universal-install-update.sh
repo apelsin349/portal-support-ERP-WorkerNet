@@ -263,6 +263,48 @@ check_url() {
     curl -sSfI --connect-timeout "$CURL_CONNECT_TIMEOUT" --max-time "$CURL_MAX_TIME" "$1" >/dev/null 2>&1
 }
 
+# Проверка обновлений скрипта (без обновления)
+check_script_updates() {
+    print_status "Проверяем доступность обновлений universal-install-update.sh..."
+
+    # Используем выбранную ветку или main по умолчанию
+    UPDATE_BRANCH="${SELECTED_BRANCH:-${REPO_BRANCH:-main}}"
+    RAW_URL="${WORKERNET_RAW_SCRIPT_URL:-https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/${UPDATE_BRANCH}/scripts/universal-install-update.sh}"
+
+    print_status "Проверяем обновления из ветки: $UPDATE_BRANCH"
+    print_status "URL: $RAW_URL"
+
+    # Проверяем доступность URL
+    if ! curl -fsSL --head "$RAW_URL" >/dev/null 2>&1; then
+        print_error "Не удается подключиться к $RAW_URL"
+        return 1
+    fi
+
+    # Загружаем информацию о файле
+    TMP_FILE="/tmp/universal-install-update-check.sh.$$"
+    if curl -fsSL "$RAW_URL" -o "$TMP_FILE"; then
+        if [ -s "$TMP_FILE" ] && head -1 "$TMP_FILE" | grep -q "#!/bin/bash"; then
+            # Извлекаем версию из загруженного файла
+            REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$TMP_FILE" | head -1 | cut -d'"' -f2 2>/dev/null || echo "неизвестна")
+            print_status "Текущая версия: $SCRIPT_VERSION"
+            print_status "Доступная версия: $REMOTE_VERSION"
+            
+            if [ "$SCRIPT_VERSION" != "$REMOTE_VERSION" ]; then
+                print_warning "Доступно обновление скрипта!"
+                print_status "Для обновления запустите: $0 --self-update"
+            else
+                print_success "Скрипт актуален"
+            fi
+        else
+            print_error "Загруженный файл поврежден"
+        fi
+        rm -f "$TMP_FILE"
+    else
+        print_error "Не удалось загрузить информацию об обновлениях"
+        return 1
+    fi
+}
+
 # Самообновление скрипта
 self_update_script() {
     if [ "${WORKERNET_SELF_UPDATE:-0}" != "1" ] && [ "${1:-}" != "--self-update" ]; then
@@ -271,29 +313,76 @@ self_update_script() {
 
     print_status "Проверяем обновления universal-install-update.sh... (self-update)"
 
+    # Определяем путь к скрипту
     SCRIPT_PATH="$0"
     if command -v readlink >/dev/null 2>&1; then
         SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH" 2>/dev/null || echo "$SCRIPT_PATH")"
     fi
 
-    RAW_BRANCH="${REPO_BRANCH:-main}"
-    RAW_URL="${WORKERNET_RAW_SCRIPT_URL:-https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/${RAW_BRANCH}/scripts/universal-install-update.sh}"
+    # Используем выбранную ветку или main по умолчанию
+    UPDATE_BRANCH="${SELECTED_BRANCH:-${REPO_BRANCH:-main}}"
+    RAW_URL="${WORKERNET_RAW_SCRIPT_URL:-https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/${UPDATE_BRANCH}/scripts/universal-install-update.sh}"
+
+    print_status "Проверяем обновления из ветки: $UPDATE_BRANCH"
+    print_status "URL: $RAW_URL"
 
     TMP_FILE="/tmp/universal-install-update.sh.$$"
+    
+    # Проверяем доступность URL
+    if ! curl -fsSL --head "$RAW_URL" >/dev/null 2>&1; then
+        print_error "Не удается подключиться к $RAW_URL"
+        print_status "Проверьте интернет-соединение и доступность GitHub"
+        return 1
+    fi
+
+    # Загружаем новую версию
     if curl -fsSL "$RAW_URL" -o "$TMP_FILE"; then
+        # Проверяем, что загруженный файл не пустой
+        if [ ! -s "$TMP_FILE" ]; then
+            print_error "Загруженный файл пуст"
+            rm -f "$TMP_FILE"
+            return 1
+        fi
+
+        # Проверяем, что это действительно bash скрипт
+        if ! head -1 "$TMP_FILE" | grep -q "#!/bin/bash"; then
+            print_error "Загруженный файл не является bash скриптом"
+            rm -f "$TMP_FILE"
+            return 1
+        fi
+
+        # Сравниваем файлы
         if cmp -s "$TMP_FILE" "$SCRIPT_PATH"; then
             print_status "Скрипт уже актуален (версия: $SCRIPT_VERSION)"
             rm -f "$TMP_FILE"
-        else
-            print_status "Найдена новая версия скрипта — обновляем..."
-            chmod +x "$TMP_FILE" 2>/dev/null || true
-            sudo cp -f "$TMP_FILE" "$SCRIPT_PATH" 2>/dev/null || cp -f "$TMP_FILE" "$SCRIPT_PATH"
+            return 0
+        fi
+
+        # Создаем резервную копию
+        BACKUP_FILE="${SCRIPT_PATH}.backup.$(date +%Y%m%d%H%M%S)"
+        if cp "$SCRIPT_PATH" "$BACKUP_FILE" 2>/dev/null; then
+            print_status "Создана резервная копия: $BACKUP_FILE"
+        fi
+
+        # Устанавливаем права на выполнение
+        chmod +x "$TMP_FILE" 2>/dev/null || true
+
+        # Пытаемся обновить скрипт
+        if cp -f "$TMP_FILE" "$SCRIPT_PATH" 2>/dev/null; then
+            print_success "Скрипт обновлён успешно"
             rm -f "$TMP_FILE"
-            print_success "Скрипт обновлён. Перезапуск..."
+            print_status "Перезапуск с обновленной версией..."
             exec bash "$SCRIPT_PATH" "$@"
+        else
+            print_error "Не удалось обновить скрипт. Возможно, нет прав на запись в $SCRIPT_PATH"
+            print_status "Попробуйте запустить с правами sudo или измените права на файл"
+            rm -f "$TMP_FILE"
+            return 1
         fi
     else
-        print_warning "Не удалось загрузить обновление скрипта по адресу: $RAW_URL"
+        print_error "Не удалось загрузить обновление скрипта по адресу: $RAW_URL"
+        print_status "Проверьте интернет-соединение и доступность GitHub"
+        return 1
     fi
 }
 
@@ -1193,6 +1282,12 @@ setup_nodejs_env() {
         print_warning "npm install не удалось после нескольких попыток. Проверьте сеть/прокси."
     fi
     
+    # Исправляем права на выполнение для всех исполняемых файлов в node_modules/.bin
+    if [ -d "$FRONTEND_DIR/node_modules/.bin" ]; then
+        print_status "Исправляем права на выполнение для исполняемых файлов npm..."
+        chmod +x "$FRONTEND_DIR/node_modules/.bin"/* 2>/dev/null || true
+    fi
+    
     print_success "Окружение Node.js настроено"
 }
 
@@ -1217,6 +1312,15 @@ build_frontend() {
     if [ -f "scripts/generate-icons.js" ]; then
         print_status "Генерируем иконки для PWA..."
         node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+    fi
+    
+    # Исправляем права на выполнение для webpack и других исполняемых файлов
+    print_status "Исправляем права на выполнение для webpack..."
+    if [ -f "node_modules/.bin/webpack" ]; then
+        chmod +x node_modules/.bin/webpack 2>/dev/null || true
+    fi
+    if [ -d "node_modules/.bin" ]; then
+        chmod +x node_modules/.bin/* 2>/dev/null || true
     fi
     
     # Собираем фронтенд для production
@@ -1813,6 +1917,7 @@ case "${1:-}" in
         echo "  --help, -h     Показать эту справку"
         echo "  --branch BRANCH Указать ветку для установки"
         echo "  --self-update  Обновить сам скрипт"
+        echo "  --check-updates Проверить доступность обновлений скрипта"
         echo
         echo "Переменные окружения:"
         echo "  WORKERNET_BRANCH=BRANCH     Ветка для установки"
@@ -1826,6 +1931,7 @@ case "${1:-}" in
         echo "  $0 --branch develop        Установить ветку develop"
         echo "  $0 --branch feature/new    Установить ветку feature/new"
         echo "  $0 --self-update           Обновить сам скрипт"
+        echo "  $0 --check-updates         Проверить доступность обновлений"
         echo "  WORKERNET_BRANCH=main $0   Установить ветку main через переменную"
         echo
         exit 0
@@ -1841,6 +1947,10 @@ case "${1:-}" in
         ;;
     --self-update)
         WORKERNET_SELF_UPDATE=1 exec bash "$0" "$@"
+        ;;
+    --check-updates)
+        check_script_updates
+        exit 0
         ;;
     *)
         main "$@"
