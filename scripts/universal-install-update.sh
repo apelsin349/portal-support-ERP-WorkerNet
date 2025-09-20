@@ -1987,14 +1987,32 @@ check_services_status() {
     SERVICES=("workernet-backend" "workernet-frontend")
     ALL_SERVICES_RUNNING=true
     
-    for service in "${SERVICES[@]}"; do
-        if systemctl is-active --quiet "$service"; then
-            print_success "✅ $service: запущен"
-        else
-            print_error "❌ $service: не запущен"
-            ALL_SERVICES_RUNNING=false
-        fi
-    done
+    # Кроссплатформенная проверка сервисов
+    if command -v systemctl >/dev/null 2>&1; then
+        # Linux система с systemd
+        for service in "${SERVICES[@]}"; do
+            if systemctl is-active --quiet "$service"; then
+                print_success "✅ $service: запущен"
+            else
+                print_error "❌ $service: не запущен"
+                ALL_SERVICES_RUNNING=false
+            fi
+        done
+    elif command -v Get-Service >/dev/null 2>&1; then
+        # Windows система
+        for service in "${SERVICES[@]}"; do
+            if Get-Service -Name "$service" -ErrorAction SilentlyContinue | Where-Object {$_.Status -eq "Running"}; then
+                print_success "✅ $service: запущен"
+            else
+                print_error "❌ $service: не запущен"
+                ALL_SERVICES_RUNNING=false
+            fi
+        done
+    else
+        # Fallback: проверяем только порты
+        print_status "Проверяем только доступность портов (системные сервисы недоступны)"
+        ALL_SERVICES_RUNNING=true
+    fi
     
     echo
     print_status "Детальный статус сервисов:"
@@ -2003,15 +2021,34 @@ check_services_status() {
     for service in "${SERVICES[@]}"; do
         echo
         print_status "Сервис: $service"
-        if systemctl is-active --quiet "$service"; then
-            print_success "Статус: АКТИВЕН"
-            # Показываем последние несколько строк лога
-            echo "Последние логи:"
-            sudo journalctl -u "$service" --no-pager -n 3 --no-hostname | sed 's/^/  /'
+        if command -v systemctl >/dev/null 2>&1; then
+            # Linux система
+            if systemctl is-active --quiet "$service"; then
+                print_success "Статус: АКТИВЕН"
+                # Показываем последние несколько строк лога
+                echo "Последние логи:"
+                sudo journalctl -u "$service" --no-pager -n 3 --no-hostname | sed 's/^/  /'
+            else
+                print_error "Статус: НЕ АКТИВЕН"
+                echo "Ошибки:"
+                sudo journalctl -u "$service" --no-pager -n 5 --no-hostname | sed 's/^/  /'
+            fi
+        elif command -v Get-Service >/dev/null 2>&1; then
+            # Windows система
+            service_status=$(Get-Service -Name "$service" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Status)
+            if [ "$service_status" = "Running" ]; then
+                print_success "Статус: АКТИВЕН"
+                echo "Сервис работает в Windows"
+            else
+                print_error "Статус: НЕ АКТИВЕН"
+                echo "Попробуйте запустить сервис:"
+                echo "  Start-Service -Name $service"
+                echo "  Get-Service -Name $service"
+            fi
         else
-            print_error "Статус: НЕ АКТИВЕН"
-            echo "Ошибки:"
-            sudo journalctl -u "$service" --no-pager -n 5 --no-hostname | sed 's/^/  /'
+            # Fallback: проверяем только порты
+            print_status "Статус: ПРОВЕРКА ПОРТОВ"
+            echo "Системные сервисы недоступны, проверяем только порты"
         fi
         echo "----------------------------------------"
     done
@@ -2025,10 +2062,35 @@ check_services_status() {
         port=$(echo "$port_info" | cut -d: -f1)
         name=$(echo "$port_info" | cut -d: -f2)
         
-        if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
-            print_success "✅ Порт $port ($name): открыт"
+        # Кроссплатформенная проверка портов
+        if command -v netstat >/dev/null 2>&1; then
+            # Linux/Unix система
+            if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+                print_success "✅ Порт $port ($name): открыт"
+            else
+                print_error "❌ Порт $port ($name): закрыт"
+            fi
+        elif command -v Get-NetTCPConnection >/dev/null 2>&1; then
+            # Windows PowerShell
+            if Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 | Out-Null; then
+                print_success "✅ Порт $port ($name): открыт"
+            else
+                print_error "❌ Порт $port ($name): закрыт"
+            fi
+        elif command -v lsof >/dev/null 2>&1; then
+            # macOS/BSD система
+            if lsof -i :$port >/dev/null 2>&1; then
+                print_success "✅ Порт $port ($name): открыт"
+            else
+                print_error "❌ Порт $port ($name): закрыт"
+            fi
         else
-            print_error "❌ Порт $port ($name): закрыт"
+            # Fallback: попробуем подключиться к порту
+            if timeout 2 bash -c "echo > /dev/tcp/localhost/$port" 2>/dev/null; then
+                print_success "✅ Порт $port ($name): открыт"
+            else
+                print_error "❌ Порт $port ($name): закрыт"
+            fi
         fi
     done
     
