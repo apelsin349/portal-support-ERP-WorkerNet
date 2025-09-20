@@ -1303,23 +1303,32 @@ check_icon_dependencies() {
         local cache_age=$(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || echo 0)))
         # Если кэш свежее 1 часа, считаем что зависимости актуальны
         if [ $cache_age -lt 3600 ]; then
+            print_status "Кэш зависимостей актуален (возраст: ${cache_age}с)"
             return 0
         fi
     fi
     
-    # Проверяем основные зависимости для генерации иконок
+    # Проверяем, что node_modules существует
+    if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+        print_status "node_modules не найден - нужна установка зависимостей"
+        return 1
+    fi
+    
+    # Проверяем основные зависимости для генерации иконок в node_modules
     local required_deps=("sharp" "jimp" "svg2png")
     local missing_deps=()
     
     for dep in "${required_deps[@]}"; do
-        if ! grep -q "\"$dep\"" "$FRONTEND_DIR/package.json"; then
+        if [ ! -d "$FRONTEND_DIR/node_modules/$dep" ]; then
             missing_deps+=("$dep")
         fi
     done
     
     if [ ${#missing_deps[@]} -eq 0 ]; then
+        print_status "Все зависимости для генерации иконок установлены"
         return 0  # Все зависимости установлены
     else
+        print_status "Отсутствующие зависимости: ${missing_deps[*]}"
         return 1  # Есть отсутствующие зависимости
     fi
 }
@@ -1493,8 +1502,9 @@ check_pwa_functionality() {
             
             # Проверяем и устанавливаем зависимости для генерации иконок
             if [ -f "scripts/install-icon-deps.js" ]; then
+                print_status "Проверяем зависимости для генерации иконок..."
                 if check_icon_dependencies; then
-                    print_success "Зависимости для генерации иконок уже установлены"
+                    print_success "Зависимости для генерации иконок уже установлены - пропускаем установку"
                 else
                     print_status "Устанавливаем зависимости для генерации иконок..."
                     node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
@@ -1555,11 +1565,13 @@ build_frontend() {
     
     # Проверяем и устанавливаем зависимости для генерации иконок
     if [ -f "scripts/install-icon-deps.js" ]; then
+        print_status "Проверяем зависимости для генерации иконок..."
         if check_icon_dependencies; then
-            print_success "Зависимости для генерации иконок уже установлены"
+            print_success "Зависимости для генерации иконок уже установлены - пропускаем установку"
         else
             print_status "Устанавливаем зависимости для генерации иконок..."
-            node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"
+            # Запускаем скрипт с флагом --force для принудительной установки
+            node scripts/install-icon-deps.js --verbose --force || print_warning "Не удалось установить зависимости для иконок"
         fi
     fi
     
@@ -2347,8 +2359,9 @@ case "${1:-}" in
         
         # Проверяем и устанавливаем зависимости для генерации иконок
         if [ -f "scripts/install-icon-deps.js" ]; then
+            print_status "Проверяем зависимости для генерации иконок..."
             if check_icon_dependencies; then
-                print_success "Зависимости для генерации иконок уже установлены"
+                print_success "Зависимости для генерации иконок уже установлены - пропускаем установку"
             else
                 print_status "Устанавливаем зависимости для генерации иконок..."
                 node scripts/install-icon-deps.js --verbose || print_warning "Не удалось установить зависимости для иконок"

@@ -79,9 +79,13 @@ class IconDependenciesInstaller {
     try {
       const packageName = dependency.split('@')[0];
       
-      if (this.isDependencyInstalled(packageName)) {
+      if (!this.force && this.isDependencyInstalled(packageName)) {
         this.log(`📦 ${packageName} уже установлен`);
         return true;
+      }
+      
+      if (this.force) {
+        this.log(`🔄 Принудительная установка ${packageName}...`);
       }
       
       this.log(`📦 Устанавливаем ${dependency}...`);
@@ -278,7 +282,8 @@ async function main() {
   const args = process.argv.slice(2);
   const options = {
     verbose: args.includes('--verbose') || args.includes('-v'),
-    installOptional: args.includes('--optional') || args.includes('-o')
+    installOptional: args.includes('--optional') || args.includes('-o'),
+    force: args.includes('--force') || args.includes('-f')
   };
   
   // Парсинг аргументов
@@ -295,11 +300,13 @@ async function main() {
 Опции:
   -v, --verbose        Подробный вывод
   -o, --optional       Установить опциональные зависимости
+  -f, --force          Принудительная установка (игнорировать проверки)
   -h, --help           Показать эту справку
 
 Примеры:
   node install-icon-deps.js
   node install-icon-deps.js --verbose --optional
+  node install-icon-deps.js --force --verbose
         `);
         process.exit(0);
         break;
