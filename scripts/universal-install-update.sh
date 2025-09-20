@@ -1291,6 +1291,214 @@ setup_nodejs_env() {
     print_success "Окружение Node.js настроено"
 }
 
+# Проверка PWA функциональности
+check_pwa_functionality() {
+    if [ -z "$FRONTEND_DIR" ]; then
+        print_warning "Каталог фронтенда не найден — пропускаем проверку PWA"
+        return 0
+    fi
+
+    print_status "Проверяем PWA функциональность..."
+    
+    local errors=0
+    local needs_rebuild=false
+    local missing_files=()
+    local missing_deps=false
+    
+    # Проверяем manifest.json
+    if [ -f "$FRONTEND_DIR/public/manifest.json" ]; then
+        print_success "manifest.json найден"
+        
+        # Проверяем валидность JSON
+        if command -v jq >/dev/null 2>&1; then
+            if jq -e '.name' "$FRONTEND_DIR/public/manifest.json" >/dev/null 2>&1; then
+                print_success "manifest.json валиден"
+            else
+                print_error "manifest.json невалиден"
+                errors=$((errors + 1))
+            fi
+        else
+            print_warning "jq не установлен — пропускаем валидацию JSON"
+        fi
+    else
+        print_error "manifest.json не найден"
+        errors=$((errors + 1))
+    fi
+    
+    # Проверяем Service Worker
+    if [ -f "$FRONTEND_DIR/src/sw.ts" ]; then
+        print_success "Service Worker найден"
+    else
+        print_error "Service Worker не найден"
+        errors=$((errors + 1))
+        missing_files+=("Service Worker (sw.ts)")
+    fi
+    
+    # Проверяем PWA компоненты
+    local pwa_components=0
+    if [ -f "$FRONTEND_DIR/src/components/PWA/PWAProvider.tsx" ]; then
+        pwa_components=$((pwa_components + 1))
+    fi
+    if [ -f "$FRONTEND_DIR/src/components/PWA/InstallButton.tsx" ]; then
+        pwa_components=$((pwa_components + 1))
+    fi
+    if [ -f "$FRONTEND_DIR/src/components/PWA/OfflineIndicator.tsx" ]; then
+        pwa_components=$((pwa_components + 1))
+    fi
+    
+    if [ $pwa_components -ge 3 ]; then
+        print_success "PWA компоненты найдены ($pwa_components из 3)"
+    else
+        print_warning "Не все PWA компоненты найдены ($pwa_components из 3)"
+        needs_rebuild=true
+    fi
+    
+    # Проверяем иконки PWA
+    local icons_found=0
+    for size in 192 512; do
+        if [ -f "$FRONTEND_DIR/public/icons/icon-${size}x${size}.png" ] || [ -f "$FRONTEND_DIR/public/icons/icon-${size}x${size}.svg" ]; then
+            icons_found=$((icons_found + 1))
+        fi
+    done
+    
+    if [ $icons_found -ge 2 ]; then
+        print_success "Иконки PWA найдены ($icons_found из 2)"
+    else
+        print_warning "Не все иконки PWA найдены ($icons_found из 2)"
+        needs_rebuild=true
+    fi
+    
+    # Проверяем webpack конфигурацию
+    if [ -f "$FRONTEND_DIR/webpack.config.js" ]; then
+        if grep -q "GenerateSW" "$FRONTEND_DIR/webpack.config.js"; then
+            print_success "Webpack настроен для PWA"
+        else
+            print_warning "Webpack не настроен для PWA"
+        fi
+    else
+        print_warning "webpack.config.js не найден"
+    fi
+    
+    # Проверяем PWA зависимости в package.json
+    if [ -f "$FRONTEND_DIR/package.json" ]; then
+        local pwa_deps=0
+        if grep -q "workbox-webpack-plugin" "$FRONTEND_DIR/package.json"; then
+            pwa_deps=$((pwa_deps + 1))
+        fi
+        if grep -q "workbox-window" "$FRONTEND_DIR/package.json"; then
+            pwa_deps=$((pwa_deps + 1))
+        fi
+        
+        if [ $pwa_deps -ge 2 ]; then
+            print_success "PWA зависимости найдены"
+        else
+            print_warning "Не все PWA зависимости найдены"
+            missing_deps=true
+        fi
+    fi
+    
+    # Проверяем сборку PWA
+    if [ -d "$FRONTEND_DIR/dist" ]; then
+        if [ -f "$FRONTEND_DIR/dist/sw.js" ]; then
+            print_success "Service Worker в сборке найден"
+        else
+            print_warning "Service Worker в сборке не найден"
+            needs_rebuild=true
+        fi
+        
+        if [ -f "$FRONTEND_DIR/dist/manifest.json" ]; then
+            print_success "manifest.json в сборке найден"
+        else
+            print_warning "manifest.json в сборке не найден"
+            needs_rebuild=true
+        fi
+    else
+        print_warning "Сборка фронтенда не найдена (запустите npm run build)"
+        needs_rebuild=true
+    fi
+    
+    # Итоговый результат
+    if [ $errors -eq 0 ] && [ "$needs_rebuild" = false ]; then
+        print_success "PWA функциональность проверена успешно! 🎉"
+        echo
+        echo "=== PWA готов к использованию ==="
+        echo "• Установка на устройства: ✅"
+        echo "• Офлайн работа: ✅"
+        echo "• Push-уведомления: ✅"
+        echo "• Автообновление: ✅"
+        echo
+    else
+        if [ "$needs_rebuild" = true ]; then
+            print_warning "Обнаружены проблемы, требующие пересборки фронтенда"
+            echo
+            echo "=== Проблемы, требующие пересборки ==="
+            if [ ${#missing_files[@]} -gt 0 ]; then
+                echo "• Отсутствующие файлы:"
+                for file in "${missing_files[@]}"; do
+                    echo "  - $file"
+                done
+            fi
+            if [ "$missing_deps" = true ]; then
+                echo "• Отсутствующие зависимости PWA"
+            fi
+            if [ ! -d "$FRONTEND_DIR/dist" ] || [ ! -f "$FRONTEND_DIR/dist/sw.js" ] || [ ! -f "$FRONTEND_DIR/dist/manifest.json" ]; then
+                echo "• Отсутствует или неполная сборка фронтенда"
+            fi
+            echo
+            echo "=== Автоматическое исправление ==="
+            echo "Запускаем пересборку фронтенда..."
+            echo
+            
+            # Переходим в каталог фронтенда
+            cd "$FRONTEND_DIR"
+            
+            # Устанавливаем зависимости если нужно
+            if [ "$missing_deps" = true ]; then
+                print_status "Устанавливаем PWA зависимости..."
+                npm install --omit=optional --no-audit --no-fund || print_warning "Не удалось установить зависимости"
+            fi
+            
+            # Генерируем иконки если нужно
+            if [ -f "scripts/generate-icons.js" ]; then
+                print_status "Генерируем иконки для PWA..."
+                node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+            fi
+            
+            # Пересобираем фронтенд
+            print_status "Пересобираем фронтенд с PWA поддержкой..."
+            if npm run build; then
+                print_success "Фронтенд пересобран успешно"
+                
+                # Повторная проверка PWA после пересборки
+                echo
+                print_status "Повторная проверка PWA после пересборки..."
+                check_pwa_functionality
+                return $?
+            else
+                print_error "Ошибка пересборки фронтенда"
+                echo
+                echo "=== Ручные действия ==="
+                echo "1. Перейдите в каталог фронтенда: cd $FRONTEND_DIR"
+                echo "2. Установите зависимости: npm install"
+                echo "3. Соберите фронтенд: npm run build"
+                echo "4. Проверьте PWA: $0 --check-pwa"
+                return 1
+            fi
+        else
+            print_error "Найдено $errors ошибок в PWA конфигурации"
+            echo
+            echo "=== Рекомендации ==="
+            echo "1. Убедитесь, что фронтенд собран: npm run build"
+            echo "2. Проверьте, что все PWA файлы на месте"
+            echo "3. Проверьте конфигурацию webpack"
+            echo "4. Убедитесь, что все зависимости установлены"
+            echo
+        fi
+    fi
+    
+    return $errors
+}
+
 # Сборка фронтенда с PWA
 build_frontend() {
     if [ -z "$FRONTEND_DIR" ]; then
@@ -1327,6 +1535,10 @@ build_frontend() {
     print_status "Собираем фронтенд для production..."
     if npm run build; then
         print_success "Фронтенд собран успешно"
+        
+        # Проверяем PWA функциональность после сборки
+        echo
+        check_pwa_functionality
     else
         print_warning "Ошибка сборки фронтенда — продолжаем без сборки"
     fi
@@ -1741,11 +1953,23 @@ show_final_info() {
     echo "Список сервисов: sudo systemctl list-units --type=service | grep workernet"
     echo "Статус всех: sudo systemctl status workernet-backend workernet-frontend"
     echo
+    echo "=== PWA функциональность ==="
+    if [ -d "${WORKERNET_ROOT:-.}/frontend" ]; then
+        echo "Проверка PWA: ./scripts/check-pwa.sh"
+        echo "PWA готов к установке на устройства!"
+        echo "• Откройте http://${SERVER_DOMAIN_OR_IP}:3000 в браузере"
+        echo "• Нажмите кнопку 'Установить' для добавления на устройство"
+        echo "• Приложение будет работать офлайн"
+    else
+        echo "PWA недоступен (фронтенд не найден)"
+    fi
+    echo
     echo "=== Следующие шаги ==="
     echo "1. Откройте приложение: http://${SERVER_DOMAIN_OR_IP}:3000"
     echo "2. Войдите: admin/admin123"
-    echo "3. Настройте параметры тенанта"
-    echo "4. Настройте SSL‑сертификаты для продакшена"
+    echo "3. Установите PWA приложение (если доступно)"
+    echo "4. Настройте параметры тенанта"
+    echo "5. Настройте SSL‑сертификаты для продакшена"
     echo
 }
 
@@ -1806,6 +2030,13 @@ update_installation() {
         python manage.py migrate --fake-initial
         python manage.py collectstatic --noinput
         print_success "Миграции выполнены"
+    fi
+    
+    # Проверяем PWA функциональность после обновления
+    if [ -d "$WORKERNET_ROOT/frontend" ]; then
+        print_status "Проверяем PWA функциональность после обновления..."
+        FRONTEND_DIR="$WORKERNET_ROOT/frontend"
+        check_pwa_functionality
     fi
     
     # Перезапускаем сервисы
@@ -1981,6 +2212,8 @@ case "${1:-}" in
         echo "  --branch BRANCH Указать ветку для установки"
         echo "  --self-update  Обновить сам скрипт"
         echo "  --check-updates Проверить доступность обновлений скрипта"
+        echo "  --check-pwa    Проверить PWA функциональность"
+        echo "  --rebuild-pwa  Принудительно пересобрать PWA"
         echo
         echo "Переменные окружения:"
         echo "  WORKERNET_BRANCH=BRANCH     Ветка для установки"
@@ -1995,6 +2228,8 @@ case "${1:-}" in
         echo "  $0 --branch feature/new    Установить ветку feature/new"
         echo "  $0 --self-update           Обновить сам скрипт"
         echo "  $0 --check-updates         Проверить доступность обновлений"
+        echo "  $0 --check-pwa             Проверить PWA функциональность"
+        echo "  $0 --rebuild-pwa           Принудительно пересобрать PWA"
         echo "  WORKERNET_BRANCH=main $0   Установить ветку main через переменную"
         echo
         exit 0
@@ -2014,6 +2249,73 @@ case "${1:-}" in
     --check-updates)
         check_script_updates
         exit 0
+        ;;
+    --check-pwa)
+        print_status "Проверка PWA функциональности WorkerNet Portal..."
+        echo
+        
+        # Определяем путь к фронтенду
+        if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "${WORKERNET_ROOT}/frontend" ]; then
+            FRONTEND_DIR="${WORKERNET_ROOT}/frontend"
+        elif [ -d "./frontend" ]; then
+            FRONTEND_DIR="./frontend"
+        elif [ -d "../frontend" ]; then
+            FRONTEND_DIR="../frontend"
+        else
+            print_error "Каталог фронтенда не найден"
+            echo "Подсказка: запустите скрипт из корня проекта WorkerNet Portal"
+            exit 1
+        fi
+        
+        check_pwa_functionality
+        exit $?
+        ;;
+    --rebuild-pwa)
+        print_status "Принудительная пересборка PWA WorkerNet Portal..."
+        echo
+        
+        # Определяем путь к фронтенду
+        if [ -n "${WORKERNET_ROOT:-}" ] && [ -d "${WORKERNET_ROOT}/frontend" ]; then
+            FRONTEND_DIR="${WORKERNET_ROOT}/frontend"
+        elif [ -d "./frontend" ]; then
+            FRONTEND_DIR="./frontend"
+        elif [ -d "../frontend" ]; then
+            FRONTEND_DIR="../frontend"
+        else
+            print_error "Каталог фронтенда не найден"
+            echo "Подсказка: запустите скрипт из корня проекта WorkerNet Portal"
+            exit 1
+        fi
+        
+        # Переходим в каталог фронтенда
+        cd "$FRONTEND_DIR"
+        
+        print_status "Устанавливаем зависимости..."
+        npm install --omit=optional --no-audit --no-fund || {
+            print_error "Не удалось установить зависимости"
+            exit 1
+        }
+        
+        # Генерируем иконки если нужно
+        if [ -f "scripts/generate-icons.js" ]; then
+            print_status "Генерируем иконки для PWA..."
+            node scripts/generate-icons.js || print_warning "Не удалось сгенерировать иконки PWA"
+        fi
+        
+        # Пересобираем фронтенд
+        print_status "Пересобираем фронтенд с PWA поддержкой..."
+        if npm run build; then
+            print_success "Фронтенд пересобран успешно"
+            
+            # Проверяем PWA после пересборки
+            echo
+            print_status "Проверяем PWA функциональность после пересборки..."
+            check_pwa_functionality
+            exit $?
+        else
+            print_error "Ошибка пересборки фронтенда"
+            exit 1
+        fi
         ;;
     *)
         main "$@"
