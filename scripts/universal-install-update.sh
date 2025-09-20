@@ -56,6 +56,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # Без цвета
 
+
 # Сетевые таймауты
 CURL_CONNECT_TIMEOUT=${CURL_CONNECT_TIMEOUT:-3}
 CURL_MAX_TIME=${CURL_MAX_TIME:-10}
@@ -86,6 +87,10 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[ОШИБКА]${NC} $1"
+}
+
+ok() {
+    echo -e "${GREEN}[OK]${NC} $1"
 }
 
 # Выбор ветки с проверкой реально существующих веток
@@ -194,10 +199,6 @@ select_branch_with_check() {
 }
 
 
-
-ok() {
-    echo -e "${GREEN}[OK]${NC} $1"
-}
 
 # Простая проверка доступности URL
 check_url() {
