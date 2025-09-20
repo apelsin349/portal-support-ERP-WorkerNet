@@ -1637,6 +1637,77 @@ start_services() {
     print_success "Сервисы запущены"
 }
 
+# Проверка статуса сервисов
+check_services_status() {
+    print_status "Проверяем статус сервисов WorkerNet Portal..."
+    echo
+    
+    # Проверяем статус каждого сервиса
+    SERVICES=("workernet-backend" "workernet-frontend")
+    ALL_SERVICES_RUNNING=true
+    
+    for service in "${SERVICES[@]}"; do
+        if systemctl is-active --quiet "$service"; then
+            print_success "✅ $service: запущен"
+        else
+            print_error "❌ $service: не запущен"
+            ALL_SERVICES_RUNNING=false
+        fi
+    done
+    
+    echo
+    print_status "Детальный статус сервисов:"
+    echo "----------------------------------------"
+    
+    for service in "${SERVICES[@]}"; do
+        echo
+        print_status "Сервис: $service"
+        if systemctl is-active --quiet "$service"; then
+            print_success "Статус: АКТИВЕН"
+            # Показываем последние несколько строк лога
+            echo "Последние логи:"
+            sudo journalctl -u "$service" --no-pager -n 3 --no-hostname | sed 's/^/  /'
+        else
+            print_error "Статус: НЕ АКТИВЕН"
+            echo "Ошибки:"
+            sudo journalctl -u "$service" --no-pager -n 5 --no-hostname | sed 's/^/  /'
+        fi
+        echo "----------------------------------------"
+    done
+    
+    # Проверяем доступность портов
+    echo
+    print_status "Проверяем доступность портов:"
+    PORTS=("3000:Frontend" "8000:API")
+    
+    for port_info in "${PORTS[@]}"; do
+        port=$(echo "$port_info" | cut -d: -f1)
+        name=$(echo "$port_info" | cut -d: -f2)
+        
+        if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+            print_success "✅ Порт $port ($name): открыт"
+        else
+            print_error "❌ Порт $port ($name): закрыт"
+        fi
+    done
+    
+    echo
+    if [ "$ALL_SERVICES_RUNNING" = true ]; then
+        print_success "🎉 Все сервисы WorkerNet Portal запущены и работают!"
+    else
+        print_warning "⚠️  Некоторые сервисы не запущены. Проверьте логи выше."
+        echo
+        print_status "Попробуйте перезапустить сервисы:"
+        echo "  sudo systemctl restart workernet-backend workernet-frontend"
+        echo
+        print_status "Или запустить их по отдельности:"
+        echo "  sudo systemctl start workernet-backend"
+        echo "  sudo systemctl start workernet-frontend"
+    fi
+    
+    echo
+}
+
 # Финальная информация
 show_final_info() {
     print_success "Установка WorkerNet Portal успешно завершена!"
@@ -1837,20 +1908,9 @@ main() {
         echo
         print_success "Обновление WorkerNet Portal завершено!"
         echo
-        echo "=== Статус сервисов ==="
-        sudo systemctl status workernet-backend --no-pager -l
-        sudo systemctl status workernet-frontend --no-pager -l
-        echo
-        echo "=== Доступ к сервисам ==="
-        echo "Фронтенд: http://${SERVER_DOMAIN_OR_IP}:3000"
-        echo "API: http://${SERVER_DOMAIN_OR_IP}:8000"
-        echo "Админ‑панель: http://${SERVER_DOMAIN_OR_IP}:8000/admin"
-        echo
-        echo "=== Управление сервисами ==="
-        echo "Перезапуск: sudo systemctl restart workernet-backend workernet-frontend"
-        echo "Статус: sudo systemctl status workernet-backend workernet-frontend"
-        echo "Логи: sudo journalctl -u workernet-backend -f"
-        echo
+        
+        # Проверяем статус сервисов
+        check_services_status
         
     else
         # Режим новой установки
@@ -1859,7 +1919,7 @@ main() {
             REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
             print_status "Используем репозиторий по умолчанию: $REPO_URL"
         fi
-        # Проверяем доступные ветки для новой установки
+        # Выбираем ветку для новой установки
         select_branch_with_check
         fresh_installation
         
@@ -1903,6 +1963,9 @@ main() {
         # Final information
         show_final_info
         show_access_info
+        
+        # Проверяем статус сервисов
+        check_services_status
     fi
 }
 
