@@ -3,7 +3,7 @@ import { Box, Typography, Card, CardContent } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
-export const UsersPage: React.FC = () => {
+const UsersPage: React.FC = () => {
   const { t } = useTranslation();
 
   return (
@@ -26,3 +26,5 @@ export const UsersPage: React.FC = () => {
     </motion.div>
   );
 };
+
+export default UsersPage;

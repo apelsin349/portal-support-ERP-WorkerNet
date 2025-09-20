@@ -28,7 +28,7 @@ interface PWAProviderProps {
 
 export const PWAProvider: React.FC<PWAProviderProps> = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isInstalled, setIsInstalled]] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [canInstall, setCanInstall] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);

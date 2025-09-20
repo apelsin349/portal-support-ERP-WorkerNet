@@ -30,7 +30,7 @@ cd portal-support-ERP-WorkerNet
 docker compose up -d
 
 # Или установка на Ubuntu
-./scripts/install-ubuntu.sh
+./scripts/universal-install-update.sh
 ```
 
 ### Доступ к приложению
@@ -158,9 +158,9 @@ docker compose logs -f        # Просмотр логов
 
 ```bash
 # Скачать и запустить скрипт установки
-wget https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/install-ubuntu.sh
-chmod +x install-ubuntu.sh
-./install-ubuntu.sh
+wget https://raw.githubusercontent.com/apelsin349/portal-support-ERP-WorkerNet/main/scripts/universal-install-update.sh
+chmod +x universal-install-update.sh
+./universal-install-update.sh
 ```
 
 ### Docker развертывание
@@ -370,7 +370,7 @@ echo "AUTO_UPDATE=true" >> .env
 ./scripts/quick-update.sh
 
 # Полное обновление
-./scripts/install-ubuntu.sh --update
+./scripts/universal-install-update.sh --update
 ```
 
 ### Откат обновлений

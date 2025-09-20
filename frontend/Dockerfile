@@ -10,6 +10,9 @@ COPY package*.json ./
 # Install all dependencies (including dev dependencies for build)
 RUN npm ci
 
+# Install icon generation dependencies
+RUN npm install sharp jimp svg2png --save-dev || echo "Icon dependencies installation failed, continuing..."
+
 # Copy source code
 COPY . .
 

@@ -1,0 +1,33 @@
+
+    <svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#1976d2;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#42a5f5;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      
+      <!-- Фон -->
+      <rect width="180" height="180" rx="22.5" fill="url(#gradient)"/>
+      
+      <!-- Иконка поддержки -->
+      <g transform="translate(45, 45)">
+        <!-- Голова -->
+        <circle cx="45" cy="33.75" r="11.25" fill="white" opacity="0.9"/>
+        
+        <!-- Тело -->
+        <rect x="33.75" y="45" width="22.5" height="28.125" rx="2.8125" fill="white" opacity="0.9"/>
+        
+        <!-- Руки -->
+        <rect x="28.125" y="49.21875" width="5.625" height="14.0625" rx="2.8125" fill="white" opacity="0.9"/>
+        <rect x="61.875" y="49.21875" width="5.625" height="14.0625" rx="2.8125" fill="white" opacity="0.9"/>
+        
+        <!-- Ноги -->
+        <rect x="37.96875" y="73.125" width="5.625" height="11.25" rx="2.8125" fill="white" opacity="0.9"/>
+        <rect x="46.40625" y="73.125" width="5.625" height="11.25" rx="2.8125" fill="white" opacity="0.9"/>
+        
+        <!-- Знак вопроса -->
+        <text x="45" y="38.671875" text-anchor="middle" font-family="Arial, sans-serif" font-size="8.4375" font-weight="bold" fill="#1976d2">?</text>
+      </g>
+    </svg>
+  

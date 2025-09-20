@@ -128,7 +128,7 @@ self.addEventListener('notificationclick', (event) => {
   const urlToOpen = event.notification.data?.url || '/';
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // Если есть открытое окно, фокусируемся на нем
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
@@ -137,19 +137,19 @@ self.addEventListener('notificationclick', (event) => {
       }
       
       // Иначе открываем новое окно
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
       }
     })
   );
 });
 
 // Обработка фоновой синхронизации
-self.addEventListener('sync', (event) => {
+self.addEventListener('sync', (event: any) => {
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Здесь можно добавить логику синхронизации данных
-      console.log('Background sync triggered')
+      Promise.resolve(console.log('Background sync triggered'))
     );
   }
 });

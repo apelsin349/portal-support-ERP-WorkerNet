@@ -9,6 +9,7 @@ import {
   Typography,
   useTheme,
   useMediaQuery,
+  Button,
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -82,13 +83,17 @@ export const Modal: React.FC<ModalProps> = ({
           boxShadow: 3,
         },
       }}
-      TransitionComponent={motion.div}
-      TransitionProps={{
-        initial: { opacity: 0, scale: 0.9, y: 20 },
-        animate: { opacity: 1, scale: 1, y: 0 },
-        exit: { opacity: 0, scale: 0.9, y: 20 },
-        transition: { duration: 0.3 },
-      }}
+      TransitionComponent={({ children, ...props }: any) => (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ duration: 0.3 }}
+          {...props}
+        >
+          {children}
+        </motion.div>
+      )}
     >
       {/* Заголовок */}
       {title && (

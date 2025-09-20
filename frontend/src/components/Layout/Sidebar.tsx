@@ -1,6 +1,6 @@
 import React from 'react';
 import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider, Box, Typography, useTheme, useMediaQuery } from '@mui/material';
-import { Dashboard, Ticket, School, People, Settings, Support } from '@mui/icons-material';
+import { Dashboard, SupportAgent, School, People, Settings, Support } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,7 @@ interface SidebarProps {
 
 const menuItems = [
   { path: '/dashboard', icon: Dashboard, label: 'navigation.dashboard' },
-  { path: '/tickets', icon: Ticket, label: 'navigation.tickets' },
+  { path: '/tickets', icon: SupportAgent, label: 'navigation.tickets' },
   { path: '/knowledge', icon: School, label: 'navigation.knowledge' },
   { path: '/users', icon: People, label: 'navigation.users' },
   { path: '/settings', icon: Settings, label: 'navigation.settings' },

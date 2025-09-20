@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-export const NotFoundPage: React.FC = () => {
+const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -57,3 +57,5 @@ export const NotFoundPage: React.FC = () => {
     </Container>
   );
 };
+
+export default NotFoundPage;

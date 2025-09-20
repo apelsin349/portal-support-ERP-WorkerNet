@@ -12,7 +12,7 @@ import { ThemeToggle } from '@components/Theme/ThemeToggle';
 import { SearchBar } from '@components/Search/SearchBar';
 import { NotificationCenter } from '@components/Notifications/NotificationCenter';
 
-export const Layout: React.FC = () => {
+const Layout: React.FC = () => {
   const { t } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -206,3 +206,5 @@ export const Layout: React.FC = () => {
     </Box>
   );
 };
+
+export default Layout;

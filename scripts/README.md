@@ -16,20 +16,20 @@
 
 ```bash
 # Полная установка с нуля
-./scripts/install-ubuntu.sh
+./scripts/universal-install-update.sh
 
 # Установка с самообновлением скрипта
-WORKERNET_SELF_UPDATE=1 ./scripts/install-ubuntu.sh
+WORKERNET_SELF_UPDATE=1 ./scripts/universal-install-update.sh
 
 # Неинтерактивная установка
-WORKERNET_NONINTERACTIVE=1 ./scripts/install-ubuntu.sh
+WORKERNET_NONINTERACTIVE=1 ./scripts/universal-install-update.sh
 ```
 
 ### **Windows**
 
 ```cmd
 # Запуск установки
-scripts\install-ubuntu.sh
+scripts\universal-install-update.sh
 ```
 
 ### **Переменные окружения**
@@ -170,7 +170,7 @@ git clone https://github.com/apelsin349/portal-support-ERP-WorkerNet.git
 cd portal-support-ERP-WorkerNet
 
 # Запустите установку
-./scripts/install-ubuntu.sh
+./scripts/universal-install-update.sh
 ```
 
 ### **2. Проверка PWA**

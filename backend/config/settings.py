@@ -120,7 +120,10 @@ AUTH_USER_MODEL = 'app.User'
 
 # Database
 DATABASES = {
-    'default': env.db(),
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    },
     'test': env.db('DATABASE_TEST_URL', default='sqlite:///test.db'),
 }
 
