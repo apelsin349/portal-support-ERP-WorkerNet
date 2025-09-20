@@ -28,8 +28,8 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 
 # Разрешенные хосты: берем из окружения, добавляем дополнительные и удобные значения для разработки
-ALLOWED_HOSTS = env('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '0.0.0.0'])
-ALLOWED_HOSTS += env('ALLOWED_HOSTS_EXTRA', default=[])
+ALLOWED_HOSTS = env('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0').split(',')
+ALLOWED_HOSTS += env('ALLOWED_HOSTS_EXTRA', default='').split(',') if env('ALLOWED_HOSTS_EXTRA', default='') else []
 
 # В режиме разработки можно автоматически разрешить локальные/внутренние IP
 if DEBUG:
@@ -220,11 +220,11 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS', default=[])
+CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://127.0.0.1:3000').split(',')
 CORS_ALLOW_CREDENTIALS = env('CORS_ALLOW_CREDENTIALS', default=True)
 
 # CSRF settings
-CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS', default=[])
+CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://127.0.0.1:3000').split(',')
 
 # Cache
 CACHES = {
