@@ -73,6 +73,8 @@ print_error() {
 
 # Выбор Git репозитория
 select_repository() {
+    print_status "DEBUG: select_repository() вызвана"
+    print_status "DEBUG: REPO_URL = '$REPO_URL'"
     # Если URL уже задан через переменную окружения, используем его
     if [ -n "$REPO_URL" ]; then
         print_status "Используем репозиторий из переменной окружения: $REPO_URL"
@@ -1470,7 +1472,10 @@ main() {
     echo
     
     # Опционально: самообновление скрипта (выполнится до любых действий)
+    # ВНИМАНИЕ: Самообновление отключено по умолчанию, так как может загрузить старую версию
     if [ "${WORKERNET_SELF_UPDATE:-0}" = "1" ] || [ "${1:-}" = "--self-update" ]; then
+        print_warning "ВНИМАНИЕ: Самообновление может загрузить старую версию скрипта с GitHub!"
+        print_status "Текущая версия скрипта: $SCRIPT_VERSION"
         self_update_script "$@"
     fi
 
@@ -1497,6 +1502,7 @@ main() {
         # Режим обновления
         
         # Сначала определяем репозиторий для обновления
+        print_status "DEBUG: REPO_URL = '$REPO_URL'"
         if [ -z "$REPO_URL" ]; then
             # Находим существующий репозиторий для показа текущего URL
             EXISTING_REPO=""
