@@ -1335,11 +1335,20 @@ check_icon_dependencies() {
 
 # Проверка PWA функциональности
 check_pwa_functionality() {
+    # Защита от рекурсии
+    if [ "${PWA_CHECK_IN_PROGRESS:-false}" = "true" ]; then
+        print_warning "Проверка PWA уже выполняется - пропускаем повторную проверку"
+        return 0
+    fi
+    
     if [ -z "$FRONTEND_DIR" ]; then
         print_warning "Каталог фронтенда не найден — пропускаем проверку PWA"
         return 0
     fi
 
+    # Устанавливаем флаг выполнения
+    export PWA_CHECK_IN_PROGRESS=true
+    
     print_status "Проверяем PWA функциональность..."
     
     local errors=0
@@ -1441,13 +1450,28 @@ check_pwa_functionality() {
     
     # Проверяем сборку PWA
     if [ -d "$FRONTEND_DIR/dist" ]; then
+        # Проверяем Service Worker в сборке (может быть с хешем)
+        local sw_found=false
         if [ -f "$FRONTEND_DIR/dist/sw.js" ]; then
+            sw_found=true
+        else
+            # Проверяем файлы с хешем
+            for sw_file in "$FRONTEND_DIR/dist"/sw.*.js; do
+                if [ -f "$sw_file" ]; then
+                    sw_found=true
+                    break
+                fi
+            done
+        fi
+        
+        if [ "$sw_found" = true ]; then
             print_success "Service Worker в сборке найден"
         else
             print_warning "Service Worker в сборке не найден"
             needs_rebuild=true
         fi
         
+        # Проверяем manifest.json в сборке
         if [ -f "$FRONTEND_DIR/dist/manifest.json" ]; then
             print_success "manifest.json в сборке найден"
         else
@@ -1522,11 +1546,14 @@ check_pwa_functionality() {
             if npm run build; then
                 print_success "Фронтенд пересобран успешно"
                 
-                # Повторная проверка PWA после пересборки
-                echo
-                print_status "Повторная проверка PWA после пересборки..."
-                check_pwa_functionality
-                return $?
+                # Небольшая задержка для завершения записи файлов
+                print_status "Ожидаем завершения записи файлов..."
+                sleep 2
+                
+                # Сброс флага и завершение
+                export PWA_CHECK_IN_PROGRESS=false
+                print_success "PWA пересобран успешно!"
+                return 0
             else
                 print_error "Ошибка пересборки фронтенда"
                 echo
@@ -1535,6 +1562,7 @@ check_pwa_functionality() {
                 echo "2. Установите зависимости: npm install"
                 echo "3. Соберите фронтенд: npm run build"
                 echo "4. Проверьте PWA: $0 --check-pwa"
+                export PWA_CHECK_IN_PROGRESS=false
                 return 1
             fi
         else
@@ -1549,6 +1577,8 @@ check_pwa_functionality() {
         fi
     fi
     
+    # Сброс флага выполнения
+    export PWA_CHECK_IN_PROGRESS=false
     return $errors
 }
 
