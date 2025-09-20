@@ -90,3 +90,4 @@ fi
 
 print_success "Проблема с SECRET_KEY исправлена!"
 print_status "Теперь можно запускать миграции: python manage.py migrate"
+

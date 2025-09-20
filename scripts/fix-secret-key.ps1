@@ -106,3 +106,4 @@ if ($EnvContent -match "^SECRET_KEY=" -and $EnvContent -notmatch "^SECRET_KEY=$"
 
 Write-Success "Проблема с SECRET_KEY исправлена!"
 Write-Status "Теперь можно запускать миграции: python manage.py migrate"
+
