@@ -1775,7 +1775,6 @@ main() {
         install_docker
         
         # Configuration
-        select_branch_with_check
         clone_repository
         setup_environment
         setup_firewall
