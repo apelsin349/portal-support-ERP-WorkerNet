@@ -19,6 +19,8 @@ REPO_URL="${WORKERNET_REPO_URL:-}"
 REPO_URL_MIRROR="${WORKERNET_REPO_MIRROR:-}"
 REPO_BRANCH="${WORKERNET_BRANCH:-main}"
 
+# DEBUG: Показываем начальные значения переменных
+
 # Server configuration (can be overridden via env)
 SERVER_DOMAIN_OR_IP="${WORKERNET_DOMAIN_OR_IP:-$(hostname -I | awk '{print $1}')}"
 
@@ -1471,6 +1473,14 @@ main() {
     print_status "Запуск универсального скрипта установки/обновления WorkerNet Portal для Ubuntu 24.04 LTS..."
     echo
     
+    # DEBUG: Показываем начальные значения переменных
+    print_status "DEBUG: Начальные значения переменных:"
+    print_status "DEBUG: WORKERNET_REPO_URL = '${WORKERNET_REPO_URL:-}'"
+    print_status "DEBUG: REPO_URL = '$REPO_URL'"
+    print_status "DEBUG: CI = '${CI:-}'"
+    print_status "DEBUG: WORKERNET_NONINTERACTIVE = '${WORKERNET_NONINTERACTIVE:-}'"
+    echo
+    
     # Опционально: самообновление скрипта (выполнится до любых действий)
     # ВНИМАНИЕ: Самообновление отключено по умолчанию, так как может загрузить старую версию
     if [ "${WORKERNET_SELF_UPDATE:-0}" = "1" ] || [ "${1:-}" = "--self-update" ]; then
@@ -1502,8 +1512,13 @@ main() {
         # Режим обновления
         
         # Сначала определяем репозиторий для обновления
+        print_status "DEBUG: Режим обновления - определяем репозиторий"
         print_status "DEBUG: REPO_URL = '$REPO_URL'"
+        print_status "DEBUG: CI = '${CI:-}'"
+        print_status "DEBUG: WORKERNET_NONINTERACTIVE = '${WORKERNET_NONINTERACTIVE:-}'"
+        
         if [ -z "$REPO_URL" ]; then
+            print_status "DEBUG: REPO_URL пустой, переходим к интерактивному выбору"
             # Находим существующий репозиторий для показа текущего URL
             EXISTING_REPO=""
             CANDIDATES=(
@@ -1520,6 +1535,7 @@ main() {
             done
             
             echo
+            print_status "DEBUG: Найден существующий репозиторий: $EXISTING_REPO"
             print_status "Обновление существующей установки"
             echo "Текущий репозиторий: $EXISTING_REPO"
             echo
@@ -1528,6 +1544,7 @@ main() {
             echo "2) Сменить репозиторий"
             echo "3) Использовать текущий (по умолчанию)"
             echo
+            print_status "DEBUG: Ожидаем ввод пользователя..."
             
             while true; do
                 read -p "Введите номер (1-3): " choice
@@ -1550,6 +1567,7 @@ main() {
                 esac
             done
         else
+            print_status "DEBUG: REPO_URL уже установлен, пропускаем интерактивный выбор"
             print_status "Используем репозиторий из переменной окружения: $REPO_URL"
         fi
         
@@ -1578,6 +1596,7 @@ main() {
         
     else
         # Режим новой установки
+        print_status "DEBUG: Режим новой установки - выбираем репозиторий"
         # Выбираем репозиторий для новой установки
         select_repository
         fresh_installation
