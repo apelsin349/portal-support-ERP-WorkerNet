@@ -73,65 +73,35 @@ print_error() {
     echo -e "${RED}[ОШИБКА]${NC} $1"
 }
 
-# Выбор Git репозитория
-select_repository() {
-    # Если URL уже задан через переменную окружения, используем его
-    if [ -n "$REPO_URL" ]; then
-        print_status "Используем репозиторий из переменной окружения: $REPO_URL"
-        return 0
-    fi
-    
-    # Если неинтерактивный режим, используем репозиторий по умолчанию
-    if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
-        REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
-        print_status "Неинтерактивный режим: используем репозиторий по умолчанию: $REPO_URL"
-        return 0
-    fi
-    
-    # Интерактивный выбор репозитория
-    echo
-    print_status "Выберите Git репозиторий для установки:"
-    echo "1) Основной репозиторий (github.com/apelsin349/portal-support-ERP-WorkerNet)"
-    echo "2) Указать другой репозиторий"
-    echo "3) Использовать основной (по умолчанию)"
-    echo
-    
-    while true; do
-        read -p "Введите номер (1-3): " choice
+# Проверка доступных веток и предложение переключения
+check_available_branches() {
+    # Определяем репозиторий из существующей установки
+    if [ -z "$REPO_URL" ]; then
+        # Ищем существующий репозиторий
+        CANDIDATES=(
+            "$(pwd)"
+            "$HOME/workernet-portal/portal-support-ERP-WorkerNet"
+            "$HOME/portal-support-ERP-WorkerNet"
+        )
         
-        case "$choice" in
-            1)
-                REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+        for dir in "${CANDIDATES[@]}"; do
+            if [ -d "$dir/.git" ]; then
+                REPO_URL="$(cd "$dir" && git remote get-url origin 2>/dev/null || echo 'не определен')"
+                print_status "Найден репозиторий: $REPO_URL"
                 break
-                ;;
-            2)
-                read -p "Введите URL репозитория: " custom_repo
-                if [ -n "$custom_repo" ]; then
-                    REPO_URL="$custom_repo"
-                    break
-                else
-                    print_error "URL репозитория не может быть пустым"
-                fi
-                ;;
-            3|"")
-                REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
-                break
-                ;;
-            *)
-                print_error "Неверный выбор. Введите номер (1-3)"
-                ;;
-        esac
-    done
+            fi
+        done
+        
+        if [ -z "$REPO_URL" ]; then
+            REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+            print_status "Используем репозиторий по умолчанию: $REPO_URL"
+        fi
+    fi
     
-    print_status "Выбран репозиторий: $REPO_URL"
-}
-
-# Выбор ветки Git
-select_branch() {
-    # Если ветка уже задана через переменную окружения, используем её
-    if [ -n "$REPO_BRANCH" ] && [ "$REPO_BRANCH" != "main" ]; then
-        print_status "Используем ветку из переменной окружения: $REPO_BRANCH"
-        SELECTED_BRANCH="$REPO_BRANCH"
+    # Если ветка указана через переменную окружения
+    if [ -n "${WORKERNET_BRANCH:-}" ]; then
+        SELECTED_BRANCH="${WORKERNET_BRANCH}"
+        print_status "Используем ветку из переменной окружения: $SELECTED_BRANCH"
         return 0
     fi
     
@@ -142,59 +112,133 @@ select_branch() {
         return 0
     fi
     
-    # Интерактивный выбор ветки
+    # Проверяем доступные ветки
+    print_status "Проверяем доступные ветки в репозитории..."
+    
+    # Получаем список удаленных веток
+    REMOTE_BRANCHES=()
+    if [ -d ".git" ]; then
+        # Если мы в git репозитории, получаем ветки из него
+        git fetch origin 2>/dev/null || true
+        REMOTE_BRANCHES=($(git branch -r --format='%(refname:short)' 2>/dev/null | grep -v 'HEAD' | sed 's/origin\///' | sort -u))
+    fi
+    
+    # Добавляем популярные ветки, если их нет в списке
+    POPULAR_BRANCHES=("main" "develop" "new-frontend" "master")
+    for branch in "${POPULAR_BRANCHES[@]}"; do
+        if [[ ! " ${REMOTE_BRANCHES[@]} " =~ " ${branch} " ]]; then
+            REMOTE_BRANCHES+=("$branch")
+        fi
+    done
+    
+    # Получаем текущую ветку
+    CURRENT_BRANCH=""
+    if [ -d ".git" ]; then
+        CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+    fi
+    
+    echo
+    print_status "Доступные ветки в репозитории:"
+    for i in "${!REMOTE_BRANCHES[@]}"; do
+        branch="${REMOTE_BRANCHES[$i]}"
+        if [ "$branch" = "$CURRENT_BRANCH" ]; then
+            echo "$((i+1))) $branch (текущая)"
+        else
+            echo "$((i+1))) $branch"
+        fi
+    done
+    
+    if [ -n "$CURRENT_BRANCH" ]; then
+        echo
+        print_status "Текущая ветка: $CURRENT_BRANCH"
+        echo "Выберите действие:"
+        echo "1) Остаться на текущей ветке ($CURRENT_BRANCH)"
+        echo "2) Переключиться на другую ветку"
+        echo "3) Использовать текущую (по умолчанию)"
+        echo
+        
+        while true; do
+            read -p "Введите номер (1-3): " choice
+            case "$choice" in
+                1|3|"")
+                    SELECTED_BRANCH="$CURRENT_BRANCH"
+                    print_status "Используем текущую ветку: $SELECTED_BRANCH"
+                    break
+                    ;;
+                2)
+                    # Выбор другой ветки
+                    select_branch_from_list "${REMOTE_BRANCHES[@]}"
+                    break
+                    ;;
+                *)
+                    print_error "Неверный выбор. Введите номер (1-3)"
+                    ;;
+            esac
+        done
+    else
+        # Если нет текущей ветки, просто выбираем из списка
+        select_branch_from_list "${REMOTE_BRANCHES[@]}"
+    fi
+}
+
+# Выбор ветки из списка
+select_branch_from_list() {
+    local branches=("$@")
+    
     echo
     print_status "Выберите ветку для установки:"
-    echo "1) main (стабильная версия)"
-    echo "2) develop (версия для разработки)"
-    echo "3) new-frontend (новая версия фронтенда)"
-    echo "4) Указать другую ветку"
-    echo "5) Использовать main (по умолчанию)"
+    for i in "${!branches[@]}"; do
+        echo "$((i+1))) ${branches[$i]}"
+    done
+    echo "$(( ${#branches[@]} + 1 ))) Указать другую ветку"
+    echo "$(( ${#branches[@]} + 2 ))) Использовать main (по умолчанию)"
     echo
     
     while true; do
-        read -p "Введите номер (1-5) или название ветки: " choice
+        read -p "Введите номер (1-$(( ${#branches[@]} + 2 ))) или название ветки: " choice
+        
+        # Проверяем, не введено ли название ветки напрямую
+        if [[ "$choice" =~ ^[a-zA-Z0-9._/-]+$ ]] && [[ ! "$choice" =~ ^[0-9]+$ ]]; then
+            SELECTED_BRANCH="$choice"
+            print_status "Выбрана ветка: $SELECTED_BRANCH"
+            return 0
+        fi
         
         case "$choice" in
-            1|main)
-                SELECTED_BRANCH="main"
-                break
-                ;;
-            2|develop)
-                SELECTED_BRANCH="develop"
-                break
-                ;;
-            3|new-frontend)
-                SELECTED_BRANCH="new-frontend"
-                break
-                ;;
-            4)
-                read -p "Введите название ветки: " custom_branch
-                if [ -n "$custom_branch" ]; then
-                    SELECTED_BRANCH="$custom_branch"
+            [1-9]|[1-9][0-9])
+                if [ "$choice" -le "${#branches[@]}" ]; then
+                    SELECTED_BRANCH="${branches[$((choice-1))]}"
+                    print_status "Выбрана ветка: $SELECTED_BRANCH"
+                    break
+                elif [ "$choice" -eq "$(( ${#branches[@]} + 1 ))" ]; then
+                    read -p "Введите название ветки: " custom_branch
+                    if [ -n "$custom_branch" ]; then
+                        SELECTED_BRANCH="$custom_branch"
+                        print_status "Выбрана ветка: $SELECTED_BRANCH"
+                        break
+                    else
+                        print_error "Название ветки не может быть пустым"
+                    fi
+                elif [ "$choice" -eq "$(( ${#branches[@]} + 2 ))" ]; then
+                    SELECTED_BRANCH="main"
+                    print_status "Выбрана ветка: $SELECTED_BRANCH"
                     break
                 else
-                    print_error "Название ветки не может быть пустым"
+                    print_error "Неверный выбор. Введите номер от 1 до $(( ${#branches[@]} + 2 ))"
                 fi
                 ;;
-            5|"")
+            "")
                 SELECTED_BRANCH="main"
+                print_status "Выбрана ветка по умолчанию: $SELECTED_BRANCH"
                 break
                 ;;
             *)
-                # Проверяем, не введено ли название ветки напрямую
-                if [[ "$choice" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
-                    SELECTED_BRANCH="$choice"
-                    break
-                else
-                    print_error "Неверный выбор. Введите номер (1-5) или название ветки"
-                fi
+                print_error "Неверный выбор. Введите номер или название ветки"
                 ;;
         esac
     done
-    
-    print_status "Выбрана ветка: $SELECTED_BRANCH"
 }
+
 
 ok() {
     echo -e "${GREEN}[OK]${NC} $1"
@@ -643,79 +687,6 @@ install_docker() {
     print_success "Docker установлен"
 }
 
-# Выбор ветки Git
-select_branch() {
-    local target_branch="${1:-}"
-    
-    # Если ветка указана через аргумент или переменную окружения
-    if [ -n "$target_branch" ]; then
-        SELECTED_BRANCH=$(echo "$target_branch" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        print_status "Выбрана ветка: $SELECTED_BRANCH"
-        return 0
-    fi
-    
-    # Если ветка указана через переменную окружения
-    if [ -n "${WORKERNET_BRANCH:-}" ]; then
-        SELECTED_BRANCH=$(echo "$WORKERNET_BRANCH" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-        print_status "Выбрана ветка из переменной окружения: $SELECTED_BRANCH"
-        return 0
-    fi
-    
-    # Если неинтерактивный режим, используем main
-    if [[ -n "${CI:-}" || -n "${WORKERNET_NONINTERACTIVE:-}" ]]; then
-        SELECTED_BRANCH="main"
-        print_status "Неинтерактивный режим: используем ветку $SELECTED_BRANCH"
-        return 0
-    fi
-    
-    # Интерактивный выбор ветки
-    echo
-    print_status "Выберите ветку для установки:"
-    echo "1) main (стабильная версия)"
-    echo "2) develop (версия для разработки)"
-    echo "3) Указать другую ветку"
-    echo "4) Использовать main (по умолчанию)"
-    echo
-    
-    while true; do
-        read -p "Введите номер (1-4) или название ветки: " choice
-        
-        case "$choice" in
-            1|main)
-                SELECTED_BRANCH="main"
-                break
-                ;;
-            2|develop)
-                SELECTED_BRANCH="develop"
-                break
-                ;;
-            3)
-                read -p "Введите название ветки: " custom_branch
-                if [ -n "$custom_branch" ]; then
-                    SELECTED_BRANCH="$custom_branch"
-                    break
-                else
-                    print_error "Название ветки не может быть пустым"
-                fi
-                ;;
-            4|"")
-                SELECTED_BRANCH="main"
-                break
-                ;;
-            *)
-                # Проверяем, не введено ли название ветки напрямую
-                if [[ "$choice" =~ ^[a-zA-Z0-9._/-]+$ ]]; then
-                    SELECTED_BRANCH="$choice"
-                    break
-                else
-                    print_error "Неверный выбор. Введите номер (1-4) или название ветки"
-                fi
-                ;;
-        esac
-    done
-    
-    print_status "Выбрана ветка: $SELECTED_BRANCH"
-}
 
 # Клонирование/обновление репозитория
 clone_repository() {
@@ -1607,15 +1578,18 @@ main() {
                         # Используем текущий репозиторий
                         REPO_URL="$EXISTING_REPO"
                         print_status "Используем текущий репозиторий: $REPO_URL"
-                        # Выбираем ветку для текущего репозитория
-                        select_branch
+                        # Проверяем доступные ветки
+                        check_available_branches
                         break
                         ;;
                     2)
-                        # Позволяем выбрать новый репозиторий
-                        select_repository
-                        # После выбора репозитория выбираем ветку
-                        select_branch
+                        # Определяем репозиторий автоматически
+                        if [ -z "$REPO_URL" ]; then
+                            REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+                            print_status "Используем репозиторий по умолчанию: $REPO_URL"
+                        fi
+                        # Проверяем доступные ветки
+                        check_available_branches
                         break
                         ;;
                     *)
@@ -1652,10 +1626,13 @@ main() {
         
     else
         # Режим новой установки
-        # Выбираем репозиторий для новой установки
-        select_repository
-        # Выбираем ветку для новой установки
-        select_branch
+        # Определяем репозиторий для новой установки
+        if [ -z "$REPO_URL" ]; then
+            REPO_URL="https://github.com/apelsin349/portal-support-ERP-WorkerNet.git"
+            print_status "Используем репозиторий по умолчанию: $REPO_URL"
+        fi
+        # Проверяем доступные ветки для новой установки
+        check_available_branches
         fresh_installation
         
         # Check prerequisites
@@ -1674,7 +1651,7 @@ main() {
         install_docker
         
         # Configuration
-        select_branch
+        check_available_branches
         clone_repository
         setup_environment
         # Гарантируем наличие каталога логов бэкенда до миграций
