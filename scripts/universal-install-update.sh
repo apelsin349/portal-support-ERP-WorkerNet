@@ -1766,6 +1766,66 @@ setup_redis() {
     print_success "Redis настроен"
 }
 
+# Функция проверки и исправления базы данных
+check_and_fix_database() {
+    print_status "Проверяем и исправляем подключение к базе данных..."
+    
+    # Проверяем, запущен ли PostgreSQL
+    if ! systemctl is-active --quiet postgresql; then
+        print_status "Запускаем PostgreSQL..."
+        sudo systemctl start postgresql
+        sudo systemctl enable postgresql
+        sleep 3
+    fi
+    
+    # Проверяем подключение к PostgreSQL
+    if ! sudo -u postgres psql -c '\q' 2>/dev/null; then
+        print_error "Не удается подключиться к PostgreSQL"
+        return 1
+    fi
+    
+    # Создаем пользователя и базу данных если их нет
+    DB_USER="workernet"
+    DB_PASSWORD="workernet123"
+    DB_NAME="workernet"
+    
+    # Создаем пользователя (идемпотентно)
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" | grep -q 1; then
+        print_status "Создаем пользователя базы данных: $DB_USER"
+        sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB;"
+    else
+        print_status "Пользователь $DB_USER уже существует, обновляем пароль"
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD' CREATEDB;" || true
+    fi
+    
+    # Создаем базу данных (идемпотентно)
+    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+        print_status "Создаем базу данных: $DB_NAME"
+        sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    else
+        print_status "База данных $DB_NAME уже существует"
+    fi
+    
+    # Настраиваем права доступа
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" || true
+    sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;" || true
+    
+    # Проверяем подключение
+    if PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+        print_success "Подключение к базе данных успешно!"
+        return 0
+    else
+        print_warning "Не удается подключиться через localhost, пробуем 127.0.0.1..."
+        if PGPASSWORD="$DB_PASSWORD" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+            print_success "Подключение через 127.0.0.1 успешно!"
+            return 0
+        else
+            print_error "Не удается подключиться к базе данных"
+            return 1
+        fi
+    fi
+}
+
 # Применение миграций базы данных
 run_migrations() {
     print_status "Выполняем миграции базы данных..."
